@@ -51,86 +51,100 @@ def format_message(item_data):
     """
     return message.strip()
 
-
-def main():
-
-
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Ошибка: Не заданы TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID в .env файле.")
-        return
-
-    notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-    db_client = DatabaseClient()
-    
-    if not db_client.conn:
-        print("Не удалось подключиться к базе данных. Завершение работы.")
-        return
-
-    if not os.path.exists(JSON_FILE_PATH):
-        print(f"Ошибка: Файл {JSON_FILE_PATH} не найден.")
-        db_client.close()
-        return
-
-    try:
-        with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
-            all_items_data = json.load(f)
-    except json.JSONDecodeError:
-        print(f"Ошибка: Не удалось прочитать JSON из файла {JSON_FILE_PATH}.")
-        db_client.close()
-        return
-    except Exception as e:
-        print(f"Ошибка при чтении файла {JSON_FILE_PATH}: {e}")
-        db_client.close()
-        return
-
-    new_items_count = 0
-    try:
-        for item in all_items_data:
-            item_id = item.get("data", {}).get("item_id")
+class AvitoNotifier:
+    def __init__(self):
+        if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+            raise ValueError("Не заданы TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID в .env файле.")
             
-            if not item_id:
-                print("Предупреждение: Объявление без ID, пропускаем:", item.get("data", {}).get("title"))
-                continue
+        self.notifier = TelegramNotifier(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+        self.db_client = DatabaseClient()
+        
+        if not self.db_client.conn:
+            raise ConnectionError("Не удалось подключиться к базе данных.")
 
-            if not db_client.is_item_sent(item_id):
-                message = format_message(item)
-                try:
-                    print(f"Отправка объявления: {item_id} - {item.get('data', {}).get('title')}")
-                    response = notifier.send_message(message, parse_mode="MarkdownV2")
-                    
-                    if response.get("ok"):
-                        if db_client.add_sent_item(item_id):
-                            print(f"ID {item_id} добавлен в базу данных.")
-                        else:
-                            print(f"Предупреждение: не удалось добавить ID {item_id} в базу данных после отправки.")
+    def load_items(self):
+        if not os.path.exists(JSON_FILE_PATH):
+            raise FileNotFoundError(f"Файл {JSON_FILE_PATH} не найден.")
+
+        try:
+            with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            raise ValueError(f"Не удалось прочитать JSON из файла {JSON_FILE_PATH}.")
+        except Exception as e:
+            raise Exception(f"Ошибка при чтении файла {JSON_FILE_PATH}: {e}")
+
+    def send_notification(self, item, item_id):
+        message = format_message(item)
+        try:
+            print(f"Отправка объявления: {item_id} - {item.get('data', {}).get('title')}")
+            response = self.notifier.send_message(message, parse_mode="MarkdownV2")
+            
+            if response.get("ok"):
+                if self.db_client.add_sent_item(item_id):
+                    print(f"ID {item_id} добавлен в базу данных.")
+                else:
+                    print(f"Предупреждение: не удалось добавить ID {item_id} в базу данных после отправки.")
+                return True
+            
+            if not response.get("ok") and response.get("description").startswith("Too Many Requests"):
+                retry_after = response.get("parameters", {}).get("retry_after")
+                print(f"Ошибка: Too Many Requests. Повторная отправка через {retry_after} секунд...")
+                
+                if retry_after:
+                    time.sleep(retry_after + 1)
+                    return self.send_notification(item, item_id)
+            else:
+                print(f"Ошибка отправки сообщения (MarkdownV2) для {item_id}. Ответ API: {response}. Попытка без форматирования...")
+                plain_message = message.replace('*', '').replace('[', '').replace(']', '').replace('(', '').replace(')', '')
+                response_plain = self.notifier.send_message(plain_message)
+                
+                if response_plain.get("ok"):
+                    if self.db_client.add_sent_item(item_id):
+                        print(f"ID {item_id} добавлен в базу данных (отправлено без форматирования).")
+                    else:
+                        print(f"Предупреждение: не удалось добавить ID {item_id} в базу данных после отправки (без форматирования).")
+                    print(f"Объявление {item_id} отправлено без форматирования.")
+                    return True
+                else:
+                    print(f"Ошибка повторной отправки сообщения (без форматирования) для {item_id}. Ответ API: {response_plain}")
+                    return False
+
+        except Exception as e:
+            print(f"Критическая ошибка при отправке сообщения для {item_id}: {e}")
+            return False
+
+    def process_items(self):
+        try:
+            all_items_data = self.load_items()
+            new_items_count = 0
+
+            for item in all_items_data:
+                item_id = item.get("data", {}).get("item_id")
+                
+                if not item_id:
+                    print("Предупреждение: Объявление без ID, пропускаем:", item.get("data", {}).get("title"))
+                    continue
+
+                if not self.db_client.is_item_sent(item_id):
+                    if self.send_notification(item, item_id):
                         new_items_count += 1
                         time.sleep(1)
-                    else:
-                        print(f"Ошибка отправки сообщения (MarkdownV2) для {item_id}. Ответ API: {response}. Попытка без форматирования...")
-                        plain_message = message.replace('*', '').replace('[', '').replace(']', '').replace('(', '').replace(')', '')
-                        response_plain = notifier.send_message(plain_message)
-                        
-                        if response_plain.get("ok"):
-                            if db_client.add_sent_item(item_id):
-                                print(f"ID {item_id} добавлен в базу данных (отправлено без форматирования).")
-                            else:
-                                print(f"Предупреждение: не удалось добавить ID {item_id} в базу данных после отправки (без форматирования).")
-                            new_items_count += 1
-                            print(f"Объявление {item_id} отправлено без форматирования.")
-                            time.sleep(1)
-                        else:
-                            print(f"Ошибка повторной отправки сообщения (без форматирования) для {item_id}. Ответ API: {response_plain}")
 
-                except Exception as e:
-                    print(f"Критическая ошибка при отправке сообщения для {item_id}: {e}")
+            if new_items_count > 0:
+                print(f"Отправлено {new_items_count} новых объявлений.")
+            else:
+                print("Новых объявлений для отправки не найдено.")
 
-    finally:
-        db_client.close()
+        finally:
+            self.db_client.close()
 
-    if new_items_count > 0:
-        print(f"Отправлено {new_items_count} новых объявлений.")
-    else:
-        print("Новых объявлений для отправки не найдено.")
+def main():
+    try:
+        notifier = AvitoNotifier()
+        notifier.process_items()
+    except Exception as e:
+        print(f"Ошибка: {e}")
 
 if __name__ == "__main__":
     main()
