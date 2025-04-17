@@ -4,7 +4,7 @@ from client.selenium.selenium import SeleniumParser
 import os
 
 def main():
-    URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1"
+    URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
     NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, "li.next > a")
     
     ENABLE_PAGINATION = True
@@ -44,8 +44,12 @@ def main():
                 print("\n--- Начало пагинации ---")
                 page_num = 2
                 
-                for driver_instance in parser.handle_pagination(NEXT_BUTTON_LOCATOR[0], NEXT_BUTTON_LOCATOR[1], 
-                                                            max_pages=MAX_PAGES, delay_between_pages=1.0):
+                for driver_instance in parser.handle_pagination(
+                        NEXT_BUTTON_LOCATOR[0], 
+                        NEXT_BUTTON_LOCATOR[1], 
+                        max_pages=MAX_PAGES, 
+                        delay_between_pages=1.0
+                    ):
                     items_count = save_items_html(driver_instance, page_num)
                     total_items += items_count
                     page_num += 1

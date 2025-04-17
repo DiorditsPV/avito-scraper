@@ -1,3 +1,4 @@
 avito_items_/
 data/
 .venv/
+__pycache__/
