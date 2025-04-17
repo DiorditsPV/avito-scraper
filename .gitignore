@@ -1,4 +1,5 @@
-avito_items_/
+avito_json/
 data/
 .venv/
 __pycache__/
+.env

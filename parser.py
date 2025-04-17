@@ -34,11 +34,11 @@ def extract_item_data(item_html):
     
     # Поиск ссылки на профиль продавца
     seller_link = soup.select_one("a[href*='/brands/']") or soup.select_one("a[href*='/user/']") or soup.select_one(".style-root-Dh2i5 a")
+    data["data"]["seller_url"] = None
     if seller_link:
         seller_url = seller_link.get('href').replace("?src=search_seller_info", "")
-        if seller_url:
-            data["data"]["seller_url"] = f"https://avito.ru{seller_url}"
-    
+        data["data"]["seller_url"] = f"https://avito.ru{seller_url}" 
+            
     # Поиск цены через указанный класс
     price_container = soup.select_one("div.price-priceContent-kPm_N")
     if price_container:
@@ -61,19 +61,16 @@ def extract_item_data(item_html):
     
     # Поиск описания
     description_elem = soup.select_one("div.iva-item-bottomBlock-FhNhY p.styles-module-ellipsis-A5gkK") 
-    published = soup.select_one('p[data-marker="item-date"]') 
-    state = soup.select_one('div.iva-item-autoParamsStep-QxatK > p[data-marker="item-specific-params"]') 
-    
     if description_elem:
         data["data"]["description"] = re.sub(r'\s+', ' ', description_elem.get_text(strip=True))
     
+    published = soup.select_one('p[data-marker="item-date"]') 
     if published:
         data["data"]["phone_state"] = published.get_text(strip=True)
     
+    state = soup.select_one('div.iva-item-autoParamsStep-QxatK > p[data-marker="item-specific-params"]') 
     if state:
         data["data"]["state"] = state.get_text(strip=True)
-
-    
     
     
     # Извлечение бейджей
