@@ -5,7 +5,6 @@ import re
 from datetime import datetime
 
 def extract_item_data(item_html):
-    """Извлекает данные из HTML-блока одного объявления"""
     soup = BeautifulSoup(item_html, 'html.parser')
     
     data = {
@@ -13,18 +12,15 @@ def extract_item_data(item_html):
         "data": {}
     }
     
-    # Поиск названия через указанный класс
     title_elem = soup.select_one("a.styles-module-root-m3BML")
     if title_elem:
         data["data"]["title"] = title_elem.get_text(strip=True)
-        # Извлечение ссылки из элемента с названием
         item_url = title_elem.get('href')
         if item_url:
             data["data"]["url"] = f"https://avito.ru{item_url}"
-    elif soup.select_one("h3.title-root"):  # Запасной вариант
+    elif soup.select_one("h3.title-root"):
         data["data"]["title"] = soup.select_one("h3.title-root").get_text(strip=True)
     
-    # Запасной вариант для ссылки
     if "url" not in data["data"]:
         link_elem = soup.select_one("a[href*='/item/']") or soup.select_one("a[data-marker='item-title']")
         if link_elem:
@@ -32,14 +28,12 @@ def extract_item_data(item_html):
             if item_url:
                 data["data"]["url"] = f"https://avito.ru{item_url}"
     
-    # Поиск ссылки на профиль продавца
     seller_link = soup.select_one("a[href*='/brands/']") or soup.select_one("a[href*='/user/']") or soup.select_one(".style-root-Dh2i5 a")
     data["data"]["seller_url"] = None
     if seller_link:
         seller_url = seller_link.get('href').replace("?src=search_seller_info", "")
         data["data"]["seller_url"] = f"https://avito.ru{seller_url}" 
             
-    # Поиск цены через указанный класс
     price_container = soup.select_one("div.price-priceContent-kPm_N")
     if price_container:
         price_elem = price_container.select_one("span") or price_container.select_one("[data-marker='item-price']")
@@ -47,19 +41,14 @@ def extract_item_data(item_html):
             price_text = price_elem.get_text(strip=True)
             price_value = re.sub(r'[^\d]', '', price_text)
             data["data"]["price"] = int(price_value) if price_value else None
-            # Заменяем неразделимый пробел на обычный
             data["data"]["price_text"] = price_text.replace('\xa0', ' ')
-    elif soup.select_one("span[data-marker='item-price']"):  # Запасной вариант
+    elif soup.select_one("span[data-marker='item-price']"):
         price_elem = soup.select_one("span[data-marker='item-price']")
         price_text = price_elem.get_text(strip=True)
         price_value = re.sub(r'[^\d]', '', price_text)
         data["data"]["price"] = int(price_value) if price_value else None
-        # Заменяем неразделимый пробел на обычный
         data["data"]["price_text"] = price_text.replace('\xa0', ' ')
     
-    
-    
-    # Поиск описания
     description_elem = soup.select_one("div.iva-item-bottomBlock-FhNhY p.styles-module-ellipsis-A5gkK") 
     if description_elem:
         data["data"]["description"] = re.sub(r'\s+', ' ', description_elem.get_text(strip=True))
@@ -72,8 +61,6 @@ def extract_item_data(item_html):
     if state:
         data["data"]["state"] = state.get_text(strip=True)
     
-    
-    # Извлечение бейджей
     badges = []
     for badge_elem in soup.select(".SnippetLayout-item-jLNdn"):
         badge_title = badge_elem.select_one(".SnippetBadge-title-DlcCS")
@@ -83,11 +70,9 @@ def extract_item_data(item_html):
     if badges:
         data["data"]["badges"] = badges
     
-    # Извлечение количества отзывов
     reviews_elem = soup.select_one("p[data-marker='seller-info/summary']")
     if reviews_elem:
         reviews_text = reviews_elem.get_text(strip=True)
-        # Извлекаем число из текста (например, из "603 отзыва")
         reviews_count_match = re.search(r'(\d+)', reviews_text)
         if reviews_count_match:
             data["data"]["seller_reviews_count"] = int(reviews_count_match.group(1))
@@ -102,7 +87,6 @@ def extract_item_data(item_html):
         data["data"]["date"] = date_elem.get_text(strip=True)
     
     item_id = None
-    # Проверяем атрибут data-item-id
     if soup.has_attr('data-item-id'):
         item_id = soup['data-item-id']
     else:
@@ -175,23 +159,18 @@ def main():
             
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            # Находим все объявления на странице
-            # Используем наиболее распространенные селекторы для блоков объявлений Авито
             items = soup.select("div[data-marker='item']") or soup.select(".iva-item-root-Se7z4")
             
             print(f"В файле {html_file} найдено {len(items)} объявлений")
             
             for i, item in enumerate(items):
                 try:
-                    # Извлекаем ID объявления для логирования
                     item_id = item.get('data-item-id') or item.get('id', f"item_{i}")
                     item_data = extract_item_data(str(item))
                     
-                    # Проверяем, есть ли в данных ID объявления
                     if 'item_id' in item_data['data']:
                         item_id = item_data['data']['item_id']
                     
-                    # Добавляем данные в общий массив
                     all_items_data.append(item_data)
                     
                     total_items += 1
@@ -202,7 +181,6 @@ def main():
         except Exception as e:
             print(f"Ошибка при обработке файла {html_file}: {e}")
     
-    # Сохраняем все данные в один файл
     output_path = os.path.join(output_dir, output_file)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(all_items_data, f, ensure_ascii=False, indent=2)

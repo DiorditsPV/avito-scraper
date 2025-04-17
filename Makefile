@@ -1,30 +1,27 @@
-# Определяем интерпретатор Python
 PYTHON = python3
 
-# Файлы и директории
 JSON_OUTPUT = avito_json/avito_items.json
+DB_FILE = avito_notifier.db 
 
-.PHONY: main parse send
+.PHONY: install parse notify all clean
 
-# Основная цель
-main: send
+install:
+	@echo "Установка зависимостей из requirements.txt..."
+	$(PYTHON) -m pip install -r requirements.txt
 
-# Запуск парсера
 parse:
 	@echo "Запуск парсера Avito..."
 	$(PYTHON) parser.py
 
-# Отправка уведомлений
-send: $(JSON_OUTPUT)
-	@echo "Отправка уведомлений в Telegram..."
+notify: $(JSON_OUTPUT)
+	@echo "Запуск отправки уведомлений в Telegram..."
 	$(PYTHON) send_avito_notifications.py
 
-send_test:
-	@echo "Отправка тестового сообщения в Telegram..."
-	$(PYTHON) client/telegram/test_send_message.py
+all: notify
 
-check_updates:
-	@echo "Проверка обновлений в Telegram..."
-	$(PYTHON) client/telegram/test_check_updates.py
+clean:
+	@echo "Очистка сгенерированных файлов..."
+	rm -f $(JSON_OUTPUT) sent_items.log $(DB_FILE) 
+	@echo "Очистка завершена."
 
 $(JSON_OUTPUT):
