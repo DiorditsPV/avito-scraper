@@ -11,7 +11,7 @@ install:
 
 scrape:
 	@echo "Запуск парсера Avito..."
-	$(PYTHON) main.py
+	$(PYTHON) scraper.py
 
 parse:
 	@echo "Запуск парсера Avito..."
