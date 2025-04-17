@@ -9,6 +9,10 @@ install:
 	@echo "Установка зависимостей из requirements.txt..."
 	$(PYTHON) -m pip install -r requirements.txt
 
+scrape:
+	@echo "Запуск парсера Avito..."
+	$(PYTHON) main.py
+
 parse:
 	@echo "Запуск парсера Avito..."
 	$(PYTHON) parser.py

@@ -5,10 +5,10 @@ import os
 
 def main():
     URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
-    NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, "li.next > a")
+    NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, '[data-marker="pagination-button/nextPage"]')
     
     ENABLE_PAGINATION = True
-    MAX_PAGES = 3
+    MAX_PAGES = 45
     
     ITEMS_CONTAINER_SELECTOR = "div.items-items-Iy89l"
     ITEM_SELECTOR = "div.iva-item-root-Se7z4"
@@ -16,8 +16,13 @@ def main():
     data_dir = "data"
     os.makedirs(data_dir, exist_ok=True)
 
-    def save_items_html(driver, page_num):
+    def save_items_html(driver, page_num, save_full_page=False):
         try:
+            if save_full_page:
+                full_page_html = driver.page_source
+                with open(f"{data_dir}/full_page/items_page_{page_num}.html", 'w', encoding='utf-8') as f:
+                    f.write(full_page_html)
+            
             items_container = driver.find_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR)
             items_html = items_container.get_attribute('outerHTML')
             
@@ -26,16 +31,17 @@ def main():
             
             items = driver.find_elements(By.CSS_SELECTOR, ITEM_SELECTOR)
             print(f"Найдено и сохранено {len(items)} объявлений на странице {page_num}")
+            print(f"Сохранены файлы: full_page_{page_num}_raw.html и items_page_{page_num}_container.html")
             return len(items)
         except Exception as e:
-            print(f"Ошибка при сохранении HTML блока с объявлениями: {e}")
+            print(f"Ошибка при сохранении HTML: {e}")
             return 0
 
     with SeleniumParser(headless=True) as parser:
         try:
             parser.go_to_page(URL)
             
-            items_container = parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=15)
+            parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=7)
             print("Контейнер с объявлениями загружен")
             
             total_items = save_items_html(parser.driver, 1)
