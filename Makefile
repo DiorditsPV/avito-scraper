@@ -11,15 +11,15 @@ install:
 
 scrape:
 	@echo "Запуск парсера Avito..."
-	$(PYTHON) scraper.py
+	$(PYTHON) main/scraper.py
 
 parse:
 	@echo "Запуск парсера Avito..."
-	$(PYTHON) parser.py
+	$(PYTHON) main/parser.py
 
 notify: $(JSON_OUTPUT)
 	@echo "Запуск отправки уведомлений в Telegram..."
-	$(PYTHON) send_avito_notifications.py
+	$(PYTHON) main/notify.py
 
 all: notify
 
