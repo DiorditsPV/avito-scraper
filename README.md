@@ -28,7 +28,6 @@
    # или
    # python scraper.py
    ```
-
    *(Сохранит HTML в `data/`)*
 3. **Распарсить HTML и загрузить в БД:**
 
@@ -37,7 +36,6 @@
    # или
    # python parser.py
    ```
-
    *(Создаст `avito_json/avito_items.json` и заполнит `db/avito_notifier.db`)*
 4. **Отправить уведомления о новых:**
 
@@ -46,17 +44,4 @@
    # или (команда по умолчанию)
    # make all
    ```
-
    *(Отправит только новые объявления)*
-
-## Другие команды
-
-* `make clean`: Очистить `data/`, `avito_json/` и БД.
-* Тесты Telegram: `python client/telegram/test_*.py`
-
-## Зависимости
-
-* `selenium`
-* `beautifulsoup4`
-* `requests`
-* `python-dotenv`
