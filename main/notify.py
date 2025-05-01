@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import argparse
 from dotenv import load_dotenv
 from client.telegram.tg import TelegramNotifier
 from client.sql.SQLight import DatabaseClient
@@ -53,6 +52,7 @@ def format_message(item_data):
 
 class AvitoNotifier:
     def __init__(self):
+        self.sleep_time_between_notifications = 2
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
             raise ValueError("Не заданы TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID в .env файле.")
             
@@ -113,7 +113,16 @@ class AvitoNotifier:
         except Exception as e:
             print(f"Критическая ошибка при отправке сообщения для {item_id}: {e}")
             return False
-
+    
+    def send_rules(self, item):
+        # TODO: реализовать правила отправки сообщения: поход в бд, расчет средней цены, сравнение с ценой объявления, отправка при удовлетворении правилу
+        # Праивло отправки 1 - ниже средней цены 
+        # Праивло отправки 2 - не является магазином 
+        
+        item_id = item["data"]["item_id"]
+        
+        return True
+    
     def process_items(self):
         try:
             all_items_data = self.load_items()
@@ -126,10 +135,10 @@ class AvitoNotifier:
                     print("Предупреждение: Объявление без ID, пропускаем:", item.get("data", {}).get("title"))
                     continue
 
-                if not self.db_client.is_item_sent(item_id):
+                if not self.db_client.is_item_sent(item_id) and self.send_rules(item):    
                     if self.send_notification(item, item_id):
                         new_items_count += 1
-                        time.sleep(1)
+                        time.sleep(self.sleep_time_between_notifications)
 
             if new_items_count > 0:
                 print(f"Отправлено {new_items_count} новых объявлений.")

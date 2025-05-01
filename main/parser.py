@@ -142,10 +142,10 @@ def extract_item_data(item_html):
     
     return data
 
-def parse_html():
-    items_dir = "data/"
-    output_dir = "avito_json"
-    output_file = "avito_items.json"
+def parse_html(timestamp_marker=None):
+    items_dir = f"data/raw/{timestamp_marker}"
+    output_dir = f"data/parsed/{timestamp_marker}"
+    output_file = f"avito_items_{timestamp_marker}.json"
     
     os.makedirs(output_dir, exist_ok=True)
     
@@ -174,15 +174,13 @@ def parse_html():
                 try:
                     item_data = extract_item_data(str(item))
 
-                    # Проверяем наличие item_id, критичного для БД
                     extracted_item_id = item_data.get("data", {}).get("item_id")
                     if not extracted_item_id:
                          logging.warning(f"Не удалось извлечь item_id из блока (атрибут блока: {item_id_attr}). Пропускаем.")
-                         continue # Пропускаем объявление без ID
+                         continue
 
                     all_items_data.append(item_data)
                     total_items += 1
-                    # logging.debug(f"Обработано объявление: {extracted_item_id}") # Debug уровень
 
                 except Exception as e:
                     logging.error(f"Ошибка при обработке объявления (атрибут блока: {item_id_attr}) в файле {html_file}: {e}", exc_info=True) # Добавляем traceback
@@ -204,7 +202,6 @@ def load_parsed_in_db():
     json_file_path = os.path.join("avito_json", "avito_items.json")
     db_client = None # Инициализируем None для блока finally
     inserted_count = 0
-    updated_count = 0 # Хотя наш SQL делает INSERT OR REPLACE, можно считать все как "обработано"
 
     logging.info("Начало загрузки данных из JSON в базу данных.")
 
