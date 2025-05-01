@@ -3,10 +3,12 @@ from selenium.common.exceptions import TimeoutException
 from client.selenium.selenium import SeleniumParser
 import os
 from datetime import datetime
-
+import time
 URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
 
-MAX_PAGES = 2
+MAX_PAGES = 15
+WAIT_TIME = 8
+PAGINATION_DELAY = 2.0
 ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg" # преодически меняется, нужно проверить по превфиксу - 'items-items-'
 ITEM_SELECTOR = "div.iva-item-root-XBsVL" # тут проверить по префиксу - 'iva-item-root-'
 NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, '[data-marker="pagination-button/nextPage"]')
@@ -49,8 +51,10 @@ def scrape(enable_pagination=True):
     with SeleniumParser(headless=True) as parser:
         try:
             parser.go_to_page(URL)
+            time.sleep(5)
+            parser.refresh_page()
             parser.wait_for_element(
-                By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=7
+                By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME
             )
             print("Контейнер с объявлениями загружен")
 
@@ -66,7 +70,7 @@ def scrape(enable_pagination=True):
                     NEXT_BUTTON_LOCATOR[0],
                     NEXT_BUTTON_LOCATOR[1],
                     max_pages=MAX_PAGES,
-                    delay_between_pages=1.0,
+                    delay_between_pages=PAGINATION_DELAY,
                 ):
                     items_count = save_items_html(
                         driver_instance,

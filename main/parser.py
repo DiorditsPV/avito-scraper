@@ -5,8 +5,8 @@ import re
 from datetime import datetime
 from client.sql.SQLight import DatabaseClient
 import logging
+from typing import Optional, Literal
 
-# Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def extract_item_data(item_html):
@@ -142,21 +142,36 @@ def extract_item_data(item_html):
     
     return data
 
+def get_latest_directory(dir_type: Optional[Literal['raw', 'parsed']] = None):
+    try:
+        raw_dirs = [d for d in os.listdir(f"data/{dir_type}") if os.path.isdir(os.path.join(f"data/{dir_type}", d))]
+        if not raw_dirs:
+            raise FileNotFoundError(f"Директория data/{dir_type} пуста")
+        latest_dir = sorted(raw_dirs)[-1]
+        logging.info(f"Используется последняя доступная директория: {latest_dir}")
+        return latest_dir
+    except FileNotFoundError as e:
+        logging.error(f"Ошибка при поиске директории: {e}")
+        raise
+
 def parse_html(timestamp_marker=None):
-    items_dir = f"data/raw/{timestamp_marker}"
+    if timestamp_marker is None:
+        timestamp_marker = get_latest_directory(dir_type='raw')
+
+    data_dir = f"data/raw/{timestamp_marker}"
     output_dir = f"data/parsed/{timestamp_marker}"
     output_file = f"avito_items_{timestamp_marker}.json"
     
     os.makedirs(output_dir, exist_ok=True)
     
-    html_files = [f for f in os.listdir(items_dir) if f.endswith('.html')]
+    html_files = [f for f in os.listdir(data_dir) if f.endswith('.html')]
     logging.info(f"Найдено {len(html_files)} HTML-файлов для парсинга")
     
     total_items = 0
     all_items_data = []
     
     for html_file in html_files:
-        file_path = os.path.join(items_dir, html_file)
+        file_path = os.path.join(data_dir, html_file)
         logging.info(f"Начало обработки файла: {html_file}")
         
         try:
@@ -197,9 +212,12 @@ def parse_html(timestamp_marker=None):
     except Exception as e:
         logging.error(f"Ошибка при сохранении JSON файла {output_path}: {e}", exc_info=True)
 
-def load_parsed_in_db():
-    """Загружает данные из JSON файла в базу данных SQLite."""
-    json_file_path = os.path.join("avito_json", "avito_items.json")
+def load_parsed_in_db(timestamp_marker=None):
+    if timestamp_marker is None:
+        timestamp_marker = get_latest_directory(dir_type='parsed')
+
+    data_dir = f"data/parsed/{timestamp_marker}"
+    json_file_path = os.path.join(data_dir, f"avito_items_{timestamp_marker}.json")
     db_client = None # Инициализируем None для блока finally
     inserted_count = 0
 
@@ -267,7 +285,7 @@ def load_parsed_in_db():
             db_client.close()
 
 def main():
-    # parse_html()
+    parse_html()
     load_parsed_in_db() # Добавляем вызов функции загрузки в БД
     
 

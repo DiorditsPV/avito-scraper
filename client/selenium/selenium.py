@@ -31,6 +31,12 @@ class SeleniumParser:
             self.driver.get(url)
         except Exception as e:
             print(f"Ошибка при переходе на URL {url}: {e}")
+    
+    def refresh_page(self):
+        try:
+            self.driver.refresh()
+        except Exception as e:
+            print(f"Ошибка при обновлении страницы: {e}")
 
     def save_html(self, filepath: str):
         try:
