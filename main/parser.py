@@ -250,7 +250,7 @@ def load_parsed_in_db():
                 "images": item_data.get("images"), # Передаем как есть, сериализация в db_client
                 "params": item_data.get("params")  # Передаем как есть, сериализация в db_client
             }
-
+            
             if db_client.add_or_update_item(flat_item):
                 inserted_count += 1 # Считаем все успешные операции
             else:

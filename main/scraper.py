@@ -2,15 +2,14 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from client.selenium.selenium import SeleniumParser
 import os
+from datetime import datetime
 
 URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
+
+MAX_PAGES = 2
+ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg" # преодически меняется, нужно проверить по превфиксу - 'items-items-'
+ITEM_SELECTOR = "div.iva-item-root-XBsVL" # тут проверить по префиксу - 'iva-item-root-'
 NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, '[data-marker="pagination-button/nextPage"]')
-
-
-MAX_PAGES = 45
-
-ITEMS_CONTAINER_SELECTOR = "div.items-items-Iy89l"
-ITEM_SELECTOR = "div.iva-item-root-Se7z4"
 
 
 def save_items_html(driver, page_num, save_full_page=False, data_dir="data"):
@@ -41,22 +40,22 @@ def save_items_html(driver, page_num, save_full_page=False, data_dir="data"):
         return 0
 
 
-def scrape(enable_pagination=True, timestamp_marker=None):
-
+def scrape(enable_pagination=True):
+    timestamp_marker=datetime.now().strftime("%Y%m%d_%H%M%S")
     data_dir = f"data/raw/{timestamp_marker}"
+    print(f"Создание директории для хранения данных: {data_dir}")
     os.makedirs(data_dir, exist_ok=True)
 
     with SeleniumParser(headless=True) as parser:
         try:
             parser.go_to_page(URL)
-
             parser.wait_for_element(
                 By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=7
             )
             print("Контейнер с объявлениями загружен")
 
             total_items = save_items_html(
-                parser.driver, 1, save_full_page=True, data_dir=data_dir
+                parser.driver, 1, save_full_page=False, data_dir=data_dir
             )
 
             if enable_pagination:
@@ -72,7 +71,7 @@ def scrape(enable_pagination=True, timestamp_marker=None):
                     items_count = save_items_html(
                         driver_instance,
                         page_num,
-                        save_full_page=True,
+                        save_full_page=False,
                         data_dir=data_dir,
                     )
                     total_items += items_count

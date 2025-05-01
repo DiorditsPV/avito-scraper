@@ -1,4 +1,5 @@
 import time
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
@@ -51,7 +52,7 @@ class SeleniumParser:
             print(f"Элемент ({locator_type}, {locator_value}) не найден за {timeout} секунд.")
             raise
 
-    def handle_pagination(self, next_button_locator_type: By, next_button_locator_value: str, max_pages: int = None, delay_between_pages: float = 1.0):
+    def handle_pagination(self, next_button_locator_type: By, next_button_locator_value: str, max_pages: int = None, delay_between_pages: float = random.uniform(1.0, 3.0)):
         page_count = 0
         while True:
             if max_pages is not None and page_count >= max_pages:
