@@ -4,10 +4,11 @@ from client.selenium.selenium import SeleniumParser
 import os
 from datetime import datetime
 import time
-URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
+# URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
+URL = "https://www.avito.ru/moskva_i_mo/nastolnye_kompyutery?cd=1&f=ASgBAgICAUTuvA2E0jQ&q=mac+mini&s=104&localPriority=1"
 
-MAX_PAGES = 15
-WAIT_TIME = 8
+MAX_PAGES = 14
+WAIT_TIME = 4.0
 PAGINATION_DELAY = 2.0
 ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg" # преодически меняется, нужно проверить по превфиксу - 'items-items-'
 ITEM_SELECTOR = "div.iva-item-root-XBsVL" # тут проверить по префиксу - 'iva-item-root-'
@@ -51,7 +52,6 @@ def scrape(enable_pagination=True):
     with SeleniumParser(headless=True) as parser:
         try:
             parser.go_to_page(URL)
-            time.sleep(5)
             parser.refresh_page()
             parser.wait_for_element(
                 By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME

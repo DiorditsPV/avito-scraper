@@ -72,7 +72,7 @@ class SeleniumParser:
 
             try:
                 print(f"Поиск кнопки 'Далее' ({next_button_locator_type}, {next_button_locator_value})...")
-                wait = WebDriverWait(self.driver, 10)
+                wait = WebDriverWait(self.driver, 2)
                 next_button = wait.until(
                     EC.element_to_be_clickable((next_button_locator_type, next_button_locator_value))
                 )

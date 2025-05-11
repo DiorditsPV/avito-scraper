@@ -9,6 +9,51 @@ from typing import Optional, Literal
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def print_selectors_summary(data_dir, html_file):
+    """Выводит статистику по найденным селекторам в HTML-файле"""
+    file_path = os.path.join(data_dir, html_file)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    logging.info("\n=== Саммари по селекторам ===")
+    for selector_name, selector in SELECTORS.items():
+        if isinstance(selector, list):
+            total = sum(len(soup.select(s)) for s in selector)
+            logging.info(f"{selector_name}: найдено {total} элементов (составной селектор)")
+        else:
+            count = len(soup.select(selector))
+            logging.info(f"{selector_name}: найдено {count} элементов")
+    logging.info("===========================\n")
+
+# Селекторы для парсинга элементов объявления
+SELECTORS = {
+    "title": "a[data-marker='item-title']",
+    "title_alt": "h3.title-root",
+    "item_link": "a[href*='/item/']",
+    "item_link_alt": "a[data-marker='item-title']",
+    "seller_link": [
+        "a[href*='/brands/']",
+        "a[href*='/user/']",
+        ".style-root-Dh2i5 a"
+    ],
+    "price_container": "div.price-priceContent-I4I3p",
+    "price_marker": "[data-marker='item-price']",
+    "description": "div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i",
+    "published_date": "p[data-marker='item-date']",
+    "state": "div.iva-item-autoParamsStep-QxatK > p[data-marker='item-specific-params']",
+    "badge_container": "div.SnippetLayout-root-zT1oI",
+    "badge_title": "span.SnippetBadge-title-NCaUc",
+    "seller_reviews": "p[data-marker='seller-info/summary']",
+    "seller_name": "div[data-marker='seller-info/name']",
+    "seller_rating": "div[data-marker='seller-info/score']",
+    "location": "div[data-marker='item-address']",
+    "date": "div[data-marker='item-date']",
+    "item_container": "div[data-marker='item']",
+    "item_container_alt": "div.iva-item-root-XBsVL",
+    "params_container": "div[data-marker='item-params'] > div",
+}
+
 def extract_item_data(item_html):
     soup = BeautifulSoup(item_html, 'html.parser')
     
@@ -17,65 +62,71 @@ def extract_item_data(item_html):
         "data": {}
     }
     
-    title_elem = soup.select_one("a.styles-module-root-m3BML")
+    title_elem = soup.select_one(SELECTORS["title"])
     if title_elem:
         data["data"]["title"] = title_elem.get_text(strip=True)
         item_url = title_elem.get('href')
         if item_url:
             data["data"]["url"] = f"https://avito.ru{item_url}"
-    elif soup.select_one("h3.title-root"):
-        data["data"]["title"] = soup.select_one("h3.title-root").get_text(strip=True)
+    elif soup.select_one(SELECTORS["title_alt"]):
+        data["data"]["title"] = soup.select_one(SELECTORS["title_alt"]).get_text(strip=True)
     
     if "url" not in data["data"]:
-        link_elem = soup.select_one("a[href*='/item/']") or soup.select_one("a[data-marker='item-title']")
+        link_elem = soup.select_one(SELECTORS["item_link"]) or soup.select_one(SELECTORS["item_link_alt"])
         if link_elem:
             item_url = link_elem.get('href')
             if item_url:
                 data["data"]["url"] = f"https://avito.ru{item_url}"
     
-    seller_link = soup.select_one("a[href*='/brands/']") or soup.select_one("a[href*='/user/']") or soup.select_one(".style-root-Dh2i5 a")
+    seller_link = None
+    for selector in SELECTORS["seller_link"]:
+        seller_link = soup.select_one(selector)
+        if seller_link:
+            break
+            
     data["data"]["seller_url"] = None
     if seller_link:
         seller_url = seller_link.get('href').replace("?src=search_seller_info", "")
         data["data"]["seller_url"] = f"https://avito.ru{seller_url}" 
             
-    price_container = soup.select_one("div.price-priceContent-kPm_N")
+    price_container = soup.select_one(SELECTORS["price_container"])
     if price_container:
-        price_elem = price_container.select_one("span") or price_container.select_one("[data-marker='item-price']")
+        price_elem = price_container.select_one("span") or price_container.select_one(SELECTORS["price_marker"])
         if price_elem:
             price_text = price_elem.get_text(strip=True)
             price_value = re.sub(r'[^\d]', '', price_text)
             data["data"]["price"] = int(price_value) if price_value else None
             data["data"]["price_text"] = price_text.replace('\xa0', ' ')
-    elif soup.select_one("span[data-marker='item-price']"):
-        price_elem = soup.select_one("span[data-marker='item-price']")
+    elif soup.select_one(SELECTORS["price_marker"]):
+        price_elem = soup.select_one(SELECTORS["price_marker"])
         price_text = price_elem.get_text(strip=True)
         price_value = re.sub(r'[^\d]', '', price_text)
         data["data"]["price"] = int(price_value) if price_value else None
         data["data"]["price_text"] = price_text.replace('\xa0', ' ')
+
     
-    description_elem = soup.select_one("div.iva-item-bottomBlock-FhNhY p.styles-module-ellipsis-A5gkK") 
+    description_elem = soup.select_one(SELECTORS["description"]) 
     if description_elem:
         data["data"]["description"] = re.sub(r'\s+', ' ', description_elem.get_text(strip=True))
     
-    published = soup.select_one('p[data-marker="item-date"]') 
+    published = soup.select_one(SELECTORS["published_date"]) 
     if published:
         data["data"]["phone_state"] = published.get_text(strip=True)
     
-    state = soup.select_one('div.iva-item-autoParamsStep-QxatK > p[data-marker="item-specific-params"]') 
+    state = soup.select_one(SELECTORS["state"]) 
     if state:
         data["data"]["state"] = state.get_text(strip=True)
     
     badges = []
-    for badge_elem in soup.select(".SnippetLayout-item-jLNdn"):
-        badge_title = badge_elem.select_one(".SnippetBadge-title-DlcCS")
+    for badge_elem in soup.select(SELECTORS["badge_container"]):
+        badge_title = badge_elem.select_one(SELECTORS["badge_title"])
         if badge_title:
             badges.append(badge_title.get_text(strip=True))
     
     if badges:
         data["data"]["badges"] = badges
     
-    reviews_elem = soup.select_one("p[data-marker='seller-info/summary']")
+    reviews_elem = soup.select_one(SELECTORS["seller_reviews"])
     if reviews_elem:
         reviews_text = reviews_elem.get_text(strip=True)
         reviews_count_match = re.search(r'(\d+)', reviews_text)
@@ -83,11 +134,11 @@ def extract_item_data(item_html):
             data["data"]["seller_reviews_count"] = int(reviews_count_match.group(1))
         data["data"]["seller_reviews_text"] = reviews_text
     
-    location_elem = soup.select_one("div[data-marker='item-address']")
+    location_elem = soup.select_one(SELECTORS["location"])
     if location_elem:
         data["data"]["location"] = location_elem.get_text(strip=True)
     
-    date_elem = soup.select_one("div[data-marker='item-date']")
+    date_elem = soup.select_one(SELECTORS["date"])
     if date_elem:
         data["data"]["date"] = date_elem.get_text(strip=True)
     
@@ -101,7 +152,7 @@ def extract_item_data(item_html):
                 break
     
     if not item_id:
-        for a_elem in soup.select("a[href*='/item/']"):
+        for a_elem in soup.select(SELECTORS["item_link"]):
             href = a_elem.get('href', '')
             id_match = re.search(r'/item/([^/]+)', href)
             if id_match:
@@ -122,7 +173,7 @@ def extract_item_data(item_html):
     data["data"]["images"] = image_urls
     
     params = {}
-    for param_elem in soup.select("div[data-marker='item-params'] > div"):
+    for param_elem in soup.select(SELECTORS["params_container"]):
         param_text = param_elem.get_text(strip=True)
         if ":" in param_text:
             key, value = param_text.split(":", 1)
@@ -131,11 +182,11 @@ def extract_item_data(item_html):
     if params:
         data["data"]["params"] = params
     
-    seller_name = soup.select_one("div[data-marker='seller-info/name']")
+    seller_name = soup.select_one(SELECTORS["seller_name"])
     if seller_name:
         data["data"]["seller_name"] = seller_name.get_text(strip=True)
     
-    seller_rating = soup.select_one("div[data-marker='seller-rating']")
+    seller_rating = soup.select_one(SELECTORS["seller_rating"])
     if seller_rating:
         rating_text = seller_rating.get_text(strip=True)
         data["data"]["seller_rating"] = rating_text
@@ -167,6 +218,10 @@ def parse_html(timestamp_marker=None):
     html_files = [f for f in os.listdir(data_dir) if f.endswith('.html')]
     logging.info(f"Найдено {len(html_files)} HTML-файлов для парсинга")
     
+    # Анализ первого файла для вывода саммари
+    if html_files:            
+        print_selectors_summary(data_dir, html_files[0])
+    
     total_items = 0
     all_items_data = []
     
@@ -180,7 +235,7 @@ def parse_html(timestamp_marker=None):
             
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            items = soup.select("div[data-marker='item']") or soup.select(".iva-item-root-Se7z4")
+            items = soup.select(SELECTORS["item_container"]) or soup.select(SELECTORS["item_container_alt"])
             
             logging.info(f"В файле {html_file} найдено {len(items)} объявлений")
             
