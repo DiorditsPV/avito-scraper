@@ -3,15 +3,20 @@ from selenium.common.exceptions import TimeoutException
 from client.selenium.selenium import SeleniumParser
 import os
 from datetime import datetime
-import time
-# URL = "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1"
-URL = "https://www.avito.ru/moskva_i_mo/nastolnye_kompyutery?cd=1&f=ASgBAgICAUTuvA2E0jQ&q=mac+mini&s=104&localPriority=1"
+
+URL = {
+    "iphone_16_pro": "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1",
+    "mac_mini": "https://www.avito.ru/moskva_i_mo/nastolnye_kompyutery?cd=1&f=ASgBAgICAUTuvA2E0jQ&q=mac+mini&s=104&localPriority=1",
+    "kindle": "https://www.avito.ru/moskva_i_mo/planshety_i_elektronnye_knigi/elektronnye_knigi-ASgBAgICAUSYAohO?cd=1&q=Amazon+kindle&s=104&localPriority=1",
+}
 
 MAX_PAGES = 14
 WAIT_TIME = 4.0
 PAGINATION_DELAY = 2.0
-ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg" # преодически меняется, нужно проверить по превфиксу - 'items-items-'
-ITEM_SELECTOR = "div.iva-item-root-XBsVL" # тут проверить по префиксу - 'iva-item-root-'
+ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg"  # преодически меняется, нужно проверить по превфиксу - 'items-items-'
+ITEM_SELECTOR = (
+    "div.iva-item-root-XBsVL"  # тут проверить по префиксу - 'iva-item-root-'
+)
 NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, '[data-marker="pagination-button/nextPage"]')
 
 
@@ -43,15 +48,20 @@ def save_items_html(driver, page_num, save_full_page=False, data_dir="data"):
         return 0
 
 
-def scrape(enable_pagination=True):
-    timestamp_marker=datetime.now().strftime("%Y%m%d_%H%M%S")
-    data_dir = f"data/raw/{timestamp_marker}"
+def scrape(enable_pagination=True, url_key=None):
+    if url_key is None:
+        raise ValueError("url_key не может быть None")
+    timestamp_marker = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dir_suffix = f"{timestamp_marker}_{url_key}"
+    data_dir = f"data/raw/{dir_suffix}"
     print(f"Создание директории для хранения данных: {data_dir}")
     os.makedirs(data_dir, exist_ok=True)
+    
+    working_url = URL[url_key]
 
     with SeleniumParser(headless=True) as parser:
         try:
-            parser.go_to_page(URL)
+            parser.go_to_page(working_url)
             parser.refresh_page()
             parser.wait_for_element(
                 By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME
@@ -96,10 +106,11 @@ def scrape(enable_pagination=True):
             print(f"Произошла общая ошибка: {e}")
 
     print("\nРабота парсера завершена.")
+    return dir_suffix
 
 
 def main():
-    scrape()
+    scrape(url_key="kindle")
 
 
 if __name__ == "__main__":

@@ -193,32 +193,33 @@ def extract_item_data(item_html):
     
     return data
 
-def get_latest_directory(dir_type: Optional[Literal['raw', 'parsed']] = None):
+def get_latest_directory(dir_type: Optional[Literal['raw', 'parsed']] = None) -> tuple[str, str]:
     try:
         raw_dirs = [d for d in os.listdir(f"data/{dir_type}") if os.path.isdir(os.path.join(f"data/{dir_type}", d))]
         if not raw_dirs:
             raise FileNotFoundError(f"Директория data/{dir_type} пуста")
         latest_dir = sorted(raw_dirs)[-1]
+        time_marker, name_marker = latest_dir.split("_")[:2], latest_dir.split("_")[2:]
         logging.info(f"Используется последняя доступная директория: {latest_dir}")
-        return latest_dir
+        logging.info(f"time_marker: {time_marker}, name_marker: {name_marker}")
+        return '_'.join(time_marker), '_'.join(name_marker)
     except FileNotFoundError as e:
         logging.error(f"Ошибка при поиске директории: {e}")
         raise
 
-def parse_html(timestamp_marker=None):
-    if timestamp_marker is None:
-        timestamp_marker = get_latest_directory(dir_type='raw')
+def parse_html(time_marker=None):
+    if time_marker is None:
+        time_marker, name_marker = get_latest_directory(dir_type='raw')
 
-    data_dir = f"data/raw/{timestamp_marker}"
-    output_dir = f"data/parsed/{timestamp_marker}"
-    output_file = f"avito_items_{timestamp_marker}.json"
+    data_dir = f"data/raw/{time_marker}_{name_marker}"
+    output_dir = f"data/parsed/{time_marker}_{name_marker}"
+    output_file = f"avito_items_{time_marker}_{name_marker}.json"
     
     os.makedirs(output_dir, exist_ok=True)
     
     html_files = [f for f in os.listdir(data_dir) if f.endswith('.html')]
     logging.info(f"Найдено {len(html_files)} HTML-файлов для парсинга")
     
-    # Анализ первого файла для вывода саммари
     if html_files:            
         print_selectors_summary(data_dir, html_files[0])
     
@@ -266,15 +267,17 @@ def parse_html(timestamp_marker=None):
         logging.info(f"Данные сохранены в JSON файл: {output_path}")
     except Exception as e:
         logging.error(f"Ошибка при сохранении JSON файла {output_path}: {e}", exc_info=True)
+    
 
-def load_parsed_in_db(timestamp_marker=None):
-    if timestamp_marker is None:
-        timestamp_marker = get_latest_directory(dir_type='parsed')
+def load_parsed_in_db(time_marker=None, name_marker=None):
+    if time_marker is None:
+        time_marker, name_marker = get_latest_directory(dir_type='parsed')
 
-    data_dir = f"data/parsed/{timestamp_marker}"
-    json_file_path = os.path.join(data_dir, f"avito_items_{timestamp_marker}.json")
+    data_dir = f"data/parsed/{time_marker}_{name_marker}"
+    json_file_path = os.path.join(data_dir, f"avito_items_{time_marker}_{name_marker}.json")
     db_client = None # Инициализируем None для блока finally
     inserted_count = 0
+    inserted_category_count = 0
 
     logging.info("Начало загрузки данных из JSON в базу данных.")
 
@@ -287,6 +290,12 @@ def load_parsed_in_db(timestamp_marker=None):
         if not db_client.conn:
             logging.error("Не удалось подключиться к базе данных. Загрузка в БД отменена.")
             return
+
+        # Создаем новую таблицу для категории, если есть name_marker
+        if name_marker:
+            logging.info(f"Создание таблицы для категории: {name_marker}")
+            if not db_client.create_category_table(name_marker):
+                logging.error(f"Не удалось создать таблицу для категории {name_marker}. Продолжаем загрузку только в общую таблицу.")
 
         with open(json_file_path, 'r', encoding='utf-8') as f:
             all_items_data = json.load(f)
@@ -324,12 +333,22 @@ def load_parsed_in_db(timestamp_marker=None):
                 "params": item_data.get("params")  # Передаем как есть, сериализация в db_client
             }
             
+            # Добавляем в общую таблицу items
             if db_client.add_or_update_item(flat_item):
                 inserted_count += 1 # Считаем все успешные операции
             else:
-                logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']}")
+                logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в общую таблицу")
+            
+            # Добавляем в категорийную таблицу, если есть name_marker
+            if name_marker:
+                if db_client.add_or_update_item_to_category(name_marker, flat_item):
+                    inserted_category_count += 1
+                else:
+                    logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в таблицу категории {name_marker}")
 
-        logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_count} объявлений.")
+        logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_count} объявлений в общей таблице.")
+        if name_marker:
+            logging.info(f"В таблицу категории {name_marker} добавлено {inserted_category_count} объявлений.")
 
     except json.JSONDecodeError:
         logging.error(f"Ошибка декодирования JSON файла: {json_file_path}", exc_info=True)

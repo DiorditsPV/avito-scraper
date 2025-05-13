@@ -166,6 +166,113 @@ class DatabaseClient:
             print(f"Ошибка при добавлении/обновлении item_id='{item_id}' в таблицу items: {e}")
             return False
 
+    def create_category_table(self, category_name: str):
+        """Создает новую таблицу для конкретной категории"""
+        if not self.cursor:
+            print(f"Ошибка: курсор базы данных не инициализирован. Невозможно создать таблицу {category_name}.")
+            return False
+            
+        # Очищаем имя категории для использования в качестве имени таблицы
+        safe_table_name = f"category_{category_name.lower().replace('-', '_')}"
+        
+        try:
+            self.cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {safe_table_name} (
+                item_id TEXT PRIMARY KEY,
+                parsed_at TEXT,
+                title TEXT,
+                price INTEGER,
+                price_text TEXT,
+                url TEXT UNIQUE,
+                seller_url TEXT,
+                description TEXT,
+                published_date_text TEXT,
+                phone_state TEXT,
+                condition TEXT,
+                location TEXT,
+                seller_name TEXT,
+                seller_rating TEXT,
+                seller_reviews_count INTEGER,
+                seller_reviews_text TEXT,
+                badges TEXT,  -- JSON string
+                images TEXT, -- JSON string
+                params TEXT, -- JSON string
+                last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """)
+            self.conn.commit()
+            print(f"Таблица '{safe_table_name}' успешно создана/проверена.")
+            return True
+        except sqlite3.Error as e:
+            print(f"Ошибка при создании таблицы '{safe_table_name}': {e}")
+            return False
+    
+    def add_or_update_item_to_category(self, category_name: str, item_data: Dict[str, Any]) -> bool:
+        """Добавляет или обновляет запись в таблице категории"""
+        if not self.cursor or not self.conn:
+            print(f"Ошибка: база данных не инициализирована. Невозможно добавить данные в {category_name}.")
+            return False
+
+        # Очищаем имя категории для использования в имени таблицы
+        safe_table_name = f"category_{category_name.lower().replace('-', '_')}"
+        
+        item_id = item_data.get("item_id")
+        if not item_id:
+            print(f"Ошибка: 'item_id' отсутствует в данных для добавления в таблицу {safe_table_name}.")
+            return False
+
+        columns = [
+            "item_id", "parsed_at", "title", "price", "price_text", "url",
+            "seller_url", "description", "published_date_text", "phone_state",
+            "condition", "location", "seller_name", "seller_rating",
+            "seller_reviews_count", "seller_reviews_text", "badges", "images", "params"
+        ]
+
+        values = []
+        for col in columns:
+            value = item_data.get(col)
+            if col in ["badges", "images", "params"] and value is not None:
+                try:
+                    values.append(json.dumps(value, ensure_ascii=False))
+                except TypeError as e:
+                    print(f"Ошибка сериализации JSON для колонки '{col}', item_id='{item_id}': {e}. Сохраняем как NULL.")
+                    values.append(None)
+            else:
+                values.append(value)
+
+        sql = f"""
+        INSERT INTO {safe_table_name} ({', '.join(columns)})
+        VALUES ({', '.join('?'*len(columns))})
+        ON CONFLICT(item_id) DO UPDATE SET
+            parsed_at=excluded.parsed_at,
+            title=excluded.title,
+            price=excluded.price,
+            price_text=excluded.price_text,
+            url=excluded.url,
+            seller_url=excluded.seller_url,
+            description=excluded.description,
+            published_date_text=excluded.published_date_text,
+            phone_state=excluded.phone_state,
+            condition=excluded.condition,
+            location=excluded.location,
+            seller_name=excluded.seller_name,
+            seller_rating=excluded.seller_rating,
+            seller_reviews_count=excluded.seller_reviews_count,
+            seller_reviews_text=excluded.seller_reviews_text,
+            badges=excluded.badges,
+            images=excluded.images,
+            params=excluded.params,
+            last_updated_at=CURRENT_TIMESTAMP
+        """
+
+        try:
+            self.cursor.execute(sql, tuple(values))
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Ошибка при добавлении/обновлении item_id='{item_id}' в таблицу {safe_table_name}: {e}")
+            return False
+
     def close(self):
         if self.conn:
             try:
