@@ -8,9 +8,10 @@ URL = {
     "iphone_16_pro": "https://www.avito.ru/moskva_i_mo/telefony/mobilnye_telefony/apple/iphone_16_pro-ASgBAgICA0SywA3KsYwVtMANzqs5sMENiPw3?cd=1&s=104&user=1",
     "mac_mini": "https://www.avito.ru/moskva_i_mo/nastolnye_kompyutery?cd=1&f=ASgBAgICAUTuvA2E0jQ&q=mac+mini&s=104&localPriority=1",
     "kindle": "https://www.avito.ru/moskva_i_mo/planshety_i_elektronnye_knigi/elektronnye_knigi-ASgBAgICAUSYAohO?cd=1&q=Amazon+kindle&s=104&localPriority=1",
+    "macbook_pro": "https://www.avito.ru/moskva_i_mo/noutbuki/apple-ASgBAgICAUSo5A302WY?cd=1&f=ASgBAQICAUSo5A302WYBQJ7kDcTWzK0QpprGEJjNrRCOza0QkqPEEbKjxBGc2O8R1NjvEbDY7xHCmZYVqOOXFbyxnhU&q=macbook+pro&user=1"
 }
 
-MAX_PAGES = 14
+MAX_PAGES = 48
 WAIT_TIME = 4.0
 PAGINATION_DELAY = 2.0
 ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg"  # преодически меняется, нужно проверить по превфиксу - 'items-items-'
@@ -110,7 +111,7 @@ def scrape(enable_pagination=True, url_key=None):
 
 
 def main():
-    scrape(url_key="kindle")
+    scrape(url_key="macbook_pro")
 
 
 if __name__ == "__main__":

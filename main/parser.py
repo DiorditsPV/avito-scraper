@@ -29,29 +29,27 @@ def print_selectors_summary(data_dir, html_file):
 # Селекторы для парсинга элементов объявления
 SELECTORS = {
     "title": "a[data-marker='item-title']",
-    "title_alt": "h3.title-root",
-    "item_link": "a[href*='/item/']",
-    "item_link_alt": "a[data-marker='item-title']",
+    "item_link": "a[data-marker='item-title']",
     "seller_link": [
         "a[href*='/brands/']",
         "a[href*='/user/']",
         ".style-root-Dh2i5 a"
     ],
-    "price_container": "div.price-priceContent-I4I3p",
-    "price_marker": "[data-marker='item-price']",
-    "description": "div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i",
+    "price_marker": "p[data-marker='item-price']",
+    
+    "description": "div[data-marker='item']", # div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i
     "published_date": "p[data-marker='item-date']",
     "state": "div.iva-item-autoParamsStep-QxatK > p[data-marker='item-specific-params']",
-    "badge_container": "div.SnippetLayout-root-zT1oI",
-    "badge_title": "span.SnippetBadge-title-NCaUc",
     "seller_reviews": "p[data-marker='seller-info/summary']",
     "seller_name": "div[data-marker='seller-info/name']",
     "seller_rating": "div[data-marker='seller-info/score']",
     "location": "div[data-marker='item-address']",
     "date": "div[data-marker='item-date']",
     "item_container": "div[data-marker='item']",
-    "item_container_alt": "div.iva-item-root-XBsVL",
     "params_container": "div[data-marker='item-params'] > div",
+
+    "badge_container": "div.SnippetLayout-root-zT1oI", # мусор?
+    "badge_title": "span.SnippetBadge-title-NCaUc",  # мусор?
 }
 
 def extract_item_data(item_html):
@@ -68,11 +66,9 @@ def extract_item_data(item_html):
         item_url = title_elem.get('href')
         if item_url:
             data["data"]["url"] = f"https://avito.ru{item_url}"
-    elif soup.select_one(SELECTORS["title_alt"]):
-        data["data"]["title"] = soup.select_one(SELECTORS["title_alt"]).get_text(strip=True)
     
     if "url" not in data["data"]:
-        link_elem = soup.select_one(SELECTORS["item_link"]) or soup.select_one(SELECTORS["item_link_alt"])
+        link_elem = soup.select_one(SELECTORS["item_link"]) 
         if link_elem:
             item_url = link_elem.get('href')
             if item_url:
@@ -89,22 +85,14 @@ def extract_item_data(item_html):
         seller_url = seller_link.get('href').replace("?src=search_seller_info", "")
         data["data"]["seller_url"] = f"https://avito.ru{seller_url}" 
             
-    price_container = soup.select_one(SELECTORS["price_container"])
-    if price_container:
-        price_elem = price_container.select_one("span") or price_container.select_one(SELECTORS["price_marker"])
-        if price_elem:
-            price_text = price_elem.get_text(strip=True)
-            price_value = re.sub(r'[^\d]', '', price_text)
-            data["data"]["price"] = int(price_value) if price_value else None
-            data["data"]["price_text"] = price_text.replace('\xa0', ' ')
-    elif soup.select_one(SELECTORS["price_marker"]):
+
+    if soup.select_one(SELECTORS["price_marker"]):
         price_elem = soup.select_one(SELECTORS["price_marker"])
         price_text = price_elem.get_text(strip=True)
         price_value = re.sub(r'[^\d]', '', price_text)
         data["data"]["price"] = int(price_value) if price_value else None
         data["data"]["price_text"] = price_text.replace('\xa0', ' ')
-
-    
+        
     description_elem = soup.select_one(SELECTORS["description"]) 
     if description_elem:
         data["data"]["description"] = re.sub(r'\s+', ' ', description_elem.get_text(strip=True))
@@ -236,7 +224,7 @@ def parse_html(time_marker=None):
             
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            items = soup.select(SELECTORS["item_container"]) or soup.select(SELECTORS["item_container_alt"])
+            items = soup.select(SELECTORS["item_container"])
             
             logging.info(f"В файле {html_file} найдено {len(items)} объявлений")
             
