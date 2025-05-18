@@ -37,12 +37,14 @@ SELECTORS = {
     ],
     "price_marker": "p[data-marker='item-price']",
     
-    "description": "div[data-marker='item']", # div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i
+    "description": "div[data-marker='item'] > meta", # div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i
     "published_date": "p[data-marker='item-date']",
     "state": "div.iva-item-autoParamsStep-QxatK > p[data-marker='item-specific-params']",
+
     "seller_reviews": "p[data-marker='seller-info/summary']",
     "seller_name": "div[data-marker='seller-info/name']",
-    "seller_rating": "div[data-marker='seller-info/score']",
+    "seller_rating": "span[data-marker='seller-info/score']",
+    
     "location": "div[data-marker='item-address']",
     "date": "div[data-marker='item-date']",
     "item_container": "div[data-marker='item']",
@@ -92,11 +94,12 @@ def extract_item_data(item_html):
         price_value = re.sub(r'[^\d]', '', price_text)
         data["data"]["price"] = int(price_value) if price_value else None
         data["data"]["price_text"] = price_text.replace('\xa0', ' ')
-        
-    description_elem = soup.select_one(SELECTORS["description"]) 
-    if description_elem:
-        data["data"]["description"] = re.sub(r'\s+', ' ', description_elem.get_text(strip=True))
+
     
+    text = soup.select_one(SELECTORS["description"]).attrs.get('content') if soup.select_one(SELECTORS["description"]) else ''
+    data["data"]["description"] = re.sub(r'\s+', ' ', text)
+
+
     published = soup.select_one(SELECTORS["published_date"]) 
     if published:
         data["data"]["phone_state"] = published.get_text(strip=True)

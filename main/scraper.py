@@ -111,7 +111,7 @@ def scrape(enable_pagination=True, url_key=None):
 
 
 def main():
-    scrape(url_key="macbook_pro")
+    scrape(url_key="kindle")
 
 
 if __name__ == "__main__":
