@@ -54,21 +54,6 @@ class DatabaseClient:
         self.disconnect()
 
     #  ---------EXECUTE---------------
-    def execute_ddl(self, ddl_sql: str) -> bool:
-        """
-        Выполнение DDL команд 
-        """
-        if not self.cursor:
-            print("[ERROR] execute_ddl: курсор базы данных не инициализирован.")
-            return False
-        
-        try:
-            self.cursor.execute(ddl_sql)
-            self.conn.commit()
-            return True
-        except sqlite3.Error as e:
-            print(f"[ERROR] execute_ddl: {e}")
-            return False
     
     def execute_query(self, sql: str, params: tuple = None) -> Any:
         """
@@ -89,12 +74,12 @@ class DatabaseClient:
         Создает таблицу для конкретной категории
         """
         ddl = get_items_table_ddl(self.category_name)
-        success = self.execute_ddl(ddl)
+        success = self.execute_query(ddl)
         
         if not success:
             raise Exception(f"[ERROR] create_category_table")
             
-    #  ---------ADD/UPDATE---------------
+    #  ---------UPDATE/INSERT---------------
     def upsert_item(self, item_data) -> bool:
         """
         Добавляет или обновляет объявление
@@ -115,11 +100,16 @@ class DatabaseClient:
         Подготавливает данные объявления для вставки в БД
         """
         values = []
-        for key, value in item_data.items():
-            try:
-                values.append(json.dumps(value, ensure_ascii=False))
-            except TypeError as e:
-                print(f"Ошибка сериализации JSON для колонки '{key}': {e}. Сохраняем как NULL.")
+        for col in ITEM_COLUMNS:
+            value = item_data.get(col)
+            if col in JSON_COLUMNS and value is not None:
+                try:
+                    values.append(json.dumps(value, ensure_ascii=False))
+                except TypeError as e:
+                    print(f"Ошибка сериализации JSON для колонки '{col}': {e}. Сохраняем как NULL.")
+                    values.append(None)
+            else:
+                values.append(value)
         return values
 
 
@@ -144,3 +134,6 @@ if __name__ == "__main__":
     
   })
     db_client.close()
+
+
+    

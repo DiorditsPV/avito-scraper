@@ -1,18 +1,14 @@
 import os
 import json
-from src.parser.parser import get_latest_directory
+from src.parser.utils import get_latest_directory
 from client.sql.SQLight import DatabaseClient
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def load_parsed_in_db(time_marker=None, name_marker=None):
-    if time_marker is None:
-        time_marker, name_marker = get_latest_directory(dir_type='parsed')
-
+def load_parsed_in_db(time_marker=None, name_marker=None):        
     data_dir = f"data/parsed/{time_marker}_{name_marker}"
     json_file_path = os.path.join(data_dir, f"avito_items_{time_marker}_{name_marker}.json")
-    inserted_count = 0
     inserted_category_count = 0
 
     logging.info("Начало загрузки данных из JSON в базу данных.")
@@ -51,17 +47,17 @@ def load_parsed_in_db(time_marker=None, name_marker=None):
                 "url": item_data.get("url"),
                 "seller_url": item_data.get("seller_url"),
                 "description": item_data.get("description"),
-                "published_date_text": item_data.get("date"), # Переименовали ключ для БД
+                "published_date_text": item_data.get("date"), 
                 "phone_state": item_data.get("phone_state"),
-                "condition": item_data.get("state"), # Переименовали ключ для БД
+                "condition": item_data.get("state"),
                 "location": item_data.get("location"),
                 "seller_name": item_data.get("seller_name"),
                 "seller_rating": item_data.get("seller_rating"),
                 "seller_reviews_count": item_data.get("seller_reviews_count"),
                 "seller_reviews_text": item_data.get("seller_reviews_text"),
-                "badges": item_data.get("badges"), # Передаем как есть, сериализация в db_client
-                "images": item_data.get("images"), # Передаем как есть, сериализация в db_client
-                "params": item_data.get("params")  # Передаем как есть, сериализация в db_client
+                "badges": item_data.get("badges"),  
+                "images": item_data.get("images"), 
+                "params": item_data.get("params") 
             }
             
             # Добавляем в категорийную таблицу, если есть name_marker
@@ -70,7 +66,7 @@ def load_parsed_in_db(time_marker=None, name_marker=None):
             else:
                 logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в таблицу категории {name_marker}")
 
-        logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_count} объявлений в общей таблице.")
+        logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_category_count} объявлений в общей таблице.")
 
 
     except json.JSONDecodeError:
@@ -80,3 +76,12 @@ def load_parsed_in_db(time_marker=None, name_marker=None):
     finally:
         if db_client:
             db_client.close()
+
+
+def main():
+    time_marker, name_marker = get_latest_directory(dir_type='parsed')
+    load_parsed_in_db(time_marker, name_marker)
+    
+
+if __name__ == "__main__":
+    main()

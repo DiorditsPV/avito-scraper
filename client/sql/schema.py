@@ -53,8 +53,6 @@ ITEM_COLUMNS = [
 JSON_COLUMNS = ["badges", "images", "params"]
 
 # SQL шаблон для UPSERT операций
-
-
 def get_upsert_sql(table_name: str = "items") -> str:
     """
     Возвращает SQL для операции UPSERT
@@ -66,25 +64,25 @@ def get_upsert_sql(table_name: str = "items") -> str:
     INSERT INTO {table_name} ({columns})
     VALUES ({placeholders})
     ON CONFLICT(item_id) DO UPDATE SET
-        parsed_at           =  excluded.parsed_at,
-        title               = excluded.title,
-        price               = excluded.price,
-        price_text          = excluded.price_text,
-        url                 = excluded.url,
-        seller_url          = excluded.seller_url,
-        description         = excluded.description,
-        published_date_text = excluded.published_date_text,
-        phone_state         = excluded.phone_state,
-        condition           = excluded.condition,
-        location            = excluded.location,
-        seller_name         = excluded.seller_name,
-        seller_rating       = excluded.seller_rating,
-        seller_reviews_count= excluded.seller_reviews_count,
-        seller_reviews_text = excluded.seller_reviews_text,
-        badges=excluded.badges,
-        images=excluded.images,
-        params=excluded.params,
-        last_updated_at=CURRENT_TIMESTAMP
+        parsed_at            = excluded.parsed_at,
+        title                = excluded.title,
+        price                = excluded.price,
+        price_text           = excluded.price_text,
+        url                  = excluded.url,
+        seller_url           = excluded.seller_url,
+        description          = excluded.description,
+        published_date_text  = excluded.published_date_text,
+        phone_state          = excluded.phone_state,
+        condition            = excluded.condition,
+        location             = excluded.location,
+        seller_name          = excluded.seller_name,
+        seller_rating        = excluded.seller_rating,
+        seller_reviews_count = excluded.seller_reviews_count,
+        seller_reviews_text  = excluded.seller_reviews_text,
+        badges               = excluded.badges,
+        images               = excluded.images,
+        params               = excluded.params,
+        last_updated_at      = CURRENT_TIMESTAMP
     """.format(
             table_name=table_name,
             columns=columns,
