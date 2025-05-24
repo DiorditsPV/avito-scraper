@@ -3,9 +3,8 @@ import json
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
-from client.sql.SQLight import DatabaseClient
 import logging
-from typing import Optional, Literal
+from src.parser.utils import get_latest_directory
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -208,8 +207,6 @@ def parse_html(time_marker=None):
     except Exception as e:
         logging.error(f"Ошибка при сохранении JSON файла {output_path}: {e}", exc_info=True)
     
-
-
 
 def main():
     parse_html()
