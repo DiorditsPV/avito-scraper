@@ -17,10 +17,11 @@ class DatabaseClient:
         
         self.connect()
         
+        # Создаем директорию для базы данных если она не существует
         if not os.path.exists(self.db_path):
             os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-            print(f"Создана директория для базы данных: {self.db_path}")
 
+        # Проверяем соединение с базой данных
         if not self.conn:
             raise Exception("Не удалось подключиться к базе данных. Загрузка в БД отменена.")
     
@@ -49,21 +50,7 @@ class DatabaseClient:
     def close(self):
         """Закрывает соединение с базой данных"""
         self.disconnect()
-    
-    #  --------SYSTEM TABLES----------------
-
-    def create_category_table(self, category_name: str):
-        """
-        Создает таблицу для конкретной категории
-        """
-        table_name = generate_category_table_name(category_name)
-        ddl = get_items_table_ddl(table_name)
-        success = self.execute_ddl(ddl)
-        
-        if not success:
-            raise Exception(f"Ошибка при создании таблицы {table_name}")
-            
-    #  ---------EXECUTE---------------
+        #  ---------EXECUTE---------------
     def execute_ddl(self, ddl_sql: str) -> bool:
         """
         Выполнение DDL команд 
@@ -87,15 +74,24 @@ class DatabaseClient:
         if not self.cursor:
             print("Ошибка: курсор базы данных не инициализирован.")
             return None
-        
         try:
-            if params:
-                return self.cursor.execute(sql, params)
-            else:
-                return self.cursor.execute(sql)
-        except sqlite3.Error as e:
-            print(f"Ошибка при выполнении запроса: {e}")
+            return self.cursor.execute(sql, params) if params else self.cursor.execute(sql)
+        except Exception as e:
+            print(f"[ERROR] execute_query: {e}")
             return None
+        
+    #  --------SYSTEM TABLES----------------
+    def create_category_table(self, category_name: str):
+        """
+        Создает таблицу для конкретной категории
+        """
+        table_name = generate_category_table_name(category_name)
+        ddl = get_items_table_ddl(table_name)
+        success = self.execute_ddl(ddl)
+        
+        if not success:
+            raise Exception(f"Ошибка при создании таблицы {table_name}")
+            
         
     #  ---------ADD/UPDATE---------------
     
