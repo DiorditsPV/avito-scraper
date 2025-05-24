@@ -71,28 +71,25 @@ class SeleniumParser:
             page_count += 1
 
             try:
-                print(f"Поиск кнопки 'Далее' ({next_button_locator_type}, {next_button_locator_value})...")
-                wait = WebDriverWait(self.driver, 2)
+                wait = WebDriverWait(self.driver, 14)
                 next_button = wait.until(
                     EC.element_to_be_clickable((next_button_locator_type, next_button_locator_value))
                 )
 
-                print("Кнопка 'Далее' найдена и кликабельна. Клик...")
                 old_html_element = self.driver.find_element(By.TAG_NAME, "html")
-
                 next_button.click()
 
                 print(f"Ожидание загрузки новой страницы (задержка {delay_between_pages} сек)...")
-                time.sleep(delay_between_pages)
+                time.sleep(1)
 
                 try:
                     wait.until(EC.staleness_of(old_html_element))
-                    print("Обнаружено обновление страницы (staleness_of).")
+                    print("Обновление страницы (staleness_of).")
                 except TimeoutException:
                     print("Предупреждение: Не удалось подтвердить обновление страницы через staleness_of.")
 
             except (NoSuchElementException, TimeoutException):
-                print("Не удалось найти кнопку 'Далее' или она неактивна/не кликабельна. Завершение пагинации.")
+                print("Не удалось найти кнопку 'Далее'. Завершение пагинации.")
                 break
             except StaleElementReferenceException:
                  print("Элемент кнопки 'Далее' устарел во время попытки клика. Возможно, страница обновилась сама. Повторная попытка на следующей итерации...")
@@ -103,10 +100,8 @@ class SeleniumParser:
 
     def close(self):
         if self.driver:
-            print("Закрытие WebDriver...")
             self.driver.quit()
             self.driver = None
-            print("WebDriver закрыт.")
 
     def __enter__(self):
         return self

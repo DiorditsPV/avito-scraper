@@ -9,23 +9,6 @@ from typing import Optional, Literal
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def print_selectors_summary(data_dir, html_file):
-    """Выводит статистику по найденным селекторам в HTML-файле"""
-    file_path = os.path.join(data_dir, html_file)
-    with open(file_path, 'r', encoding='utf-8') as f:
-        html_content = f.read()
-    soup = BeautifulSoup(html_content, 'html.parser')
-    
-    logging.info("\n=== Саммари по селекторам ===")
-    for selector_name, selector in SELECTORS.items():
-        if isinstance(selector, list):
-            total = sum(len(soup.select(s)) for s in selector)
-            logging.info(f"{selector_name}: найдено {total} элементов (составной селектор)")
-        else:
-            count = len(soup.select(selector))
-            logging.info(f"{selector_name}: найдено {count} элементов")
-    logging.info("===========================\n")
-
 # Селекторы для парсинга элементов объявления
 SELECTORS = {
     "title": "a[data-marker='item-title']",
@@ -35,6 +18,7 @@ SELECTORS = {
         "a[href*='/user/']",
         ".style-root-Dh2i5 a"
     ],
+    "item_id": "div[data-marker='item']",
     "price_marker": "p[data-marker='item-price']",
     
     "description": "div[data-marker='item'] > meta", # div.iva-item-bottomBlock-VewGa p.styles-module-margin-bottom_4-OpB5i
@@ -133,23 +117,7 @@ def extract_item_data(item_html):
     if date_elem:
         data["data"]["date"] = date_elem.get_text(strip=True)
     
-    item_id = None
-    if soup.has_attr('data-item-id'):
-        item_id = soup['data-item-id']
-    else:
-        for elem in soup.select("[data-item-id]"):
-            item_id = elem.get('data-item-id')
-            if item_id:
-                break
-    
-    if not item_id:
-        for a_elem in soup.select(SELECTORS["item_link"]):
-            href = a_elem.get('href', '')
-            id_match = re.search(r'/item/([^/]+)', href)
-            if id_match:
-                item_id = id_match.group(1)
-                break
-    
+    item_id = soup.select_one(SELECTORS["item_id"]).get("data-item-id")
     if item_id:
         data["data"]["item_id"] = item_id
     
@@ -184,20 +152,6 @@ def extract_item_data(item_html):
     
     return data
 
-def get_latest_directory(dir_type: Optional[Literal['raw', 'parsed']] = None) -> tuple[str, str]:
-    try:
-        raw_dirs = [d for d in os.listdir(f"data/{dir_type}") if os.path.isdir(os.path.join(f"data/{dir_type}", d))]
-        if not raw_dirs:
-            raise FileNotFoundError(f"Директория data/{dir_type} пуста")
-        latest_dir = sorted(raw_dirs)[-1]
-        time_marker, name_marker = latest_dir.split("_")[:2], latest_dir.split("_")[2:]
-        logging.info(f"Используется последняя доступная директория: {latest_dir}")
-        logging.info(f"time_marker: {time_marker}, name_marker: {name_marker}")
-        return '_'.join(time_marker), '_'.join(name_marker)
-    except FileNotFoundError as e:
-        logging.error(f"Ошибка при поиске директории: {e}")
-        raise
-
 def parse_html(time_marker=None):
     if time_marker is None:
         time_marker, name_marker = get_latest_directory(dir_type='raw')
@@ -210,9 +164,6 @@ def parse_html(time_marker=None):
     
     html_files = [f for f in os.listdir(data_dir) if f.endswith('.html')]
     logging.info(f"Найдено {len(html_files)} HTML-файлов для парсинга")
-    
-    if html_files:            
-        print_selectors_summary(data_dir, html_files[0])
     
     total_items = 0
     all_items_data = []
@@ -235,9 +186,7 @@ def parse_html(time_marker=None):
                 item_id_attr = item.get('data-item-id') or item.get('id', f"unknown_item_{i}")
                 try:
                     item_data = extract_item_data(str(item))
-
-                    extracted_item_id = item_data.get("data", {}).get("item_id")
-                    if not extracted_item_id:
+                    if not item_data.get("data"):
                          logging.warning(f"Не удалось извлечь item_id из блока (атрибут блока: {item_id_attr}). Пропускаем.")
                          continue
 
@@ -260,98 +209,10 @@ def parse_html(time_marker=None):
         logging.error(f"Ошибка при сохранении JSON файла {output_path}: {e}", exc_info=True)
     
 
-def load_parsed_in_db(time_marker=None, name_marker=None):
-    if time_marker is None:
-        time_marker, name_marker = get_latest_directory(dir_type='parsed')
 
-    data_dir = f"data/parsed/{time_marker}_{name_marker}"
-    json_file_path = os.path.join(data_dir, f"avito_items_{time_marker}_{name_marker}.json")
-    db_client = None # Инициализируем None для блока finally
-    inserted_count = 0
-    inserted_category_count = 0
-
-    logging.info("Начало загрузки данных из JSON в базу данных.")
-
-    if not os.path.exists(json_file_path):
-        logging.error(f"JSON файл не найден: {json_file_path}. Загрузка в БД отменена.")
-        return
-
-    try:
-        db_client = DatabaseClient() # Использует путь по умолчанию 'db/avito_notifier.db'
-        if not db_client.conn:
-            logging.error("Не удалось подключиться к базе данных. Загрузка в БД отменена.")
-            return
-
-        # Создаем новую таблицу для категории, если есть name_marker
-        if name_marker:
-            logging.info(f"Создание таблицы для категории: {name_marker}")
-            if not db_client.create_category_table(name_marker):
-                logging.error(f"Не удалось создать таблицу для категории {name_marker}. Продолжаем загрузку только в общую таблицу.")
-
-        with open(json_file_path, 'r', encoding='utf-8') as f:
-            all_items_data = json.load(f)
-
-        logging.info(f"Загружено {len(all_items_data)} записей из {json_file_path}.")
-
-        for item_entry in all_items_data:
-            item_data = item_entry.get("data", {})
-            parsed_at = item_entry.get("timestamp")
-
-            if not item_data or "item_id" not in item_data:
-                logging.warning(f"Пропущена запись без 'data' или 'item_id': {item_entry}")
-                continue
-
-            # Формируем плоский словарь для передачи в БД
-            flat_item = {
-                "item_id": item_data.get("item_id"),
-                "parsed_at": parsed_at,
-                "title": item_data.get("title"),
-                "price": item_data.get("price"),
-                "price_text": item_data.get("price_text"),
-                "url": item_data.get("url"),
-                "seller_url": item_data.get("seller_url"),
-                "description": item_data.get("description"),
-                "published_date_text": item_data.get("date"), # Переименовали ключ для БД
-                "phone_state": item_data.get("phone_state"),
-                "condition": item_data.get("state"), # Переименовали ключ для БД
-                "location": item_data.get("location"),
-                "seller_name": item_data.get("seller_name"),
-                "seller_rating": item_data.get("seller_rating"),
-                "seller_reviews_count": item_data.get("seller_reviews_count"),
-                "seller_reviews_text": item_data.get("seller_reviews_text"),
-                "badges": item_data.get("badges"), # Передаем как есть, сериализация в db_client
-                "images": item_data.get("images"), # Передаем как есть, сериализация в db_client
-                "params": item_data.get("params")  # Передаем как есть, сериализация в db_client
-            }
-            
-            # Добавляем в общую таблицу items
-            if db_client.add_or_update_item(flat_item):
-                inserted_count += 1 # Считаем все успешные операции
-            else:
-                logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в общую таблицу")
-            
-            # Добавляем в категорийную таблицу, если есть name_marker
-            if name_marker:
-                if db_client.add_or_update_item_to_category(name_marker, flat_item):
-                    inserted_category_count += 1
-                else:
-                    logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в таблицу категории {name_marker}")
-
-        logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_count} объявлений в общей таблице.")
-        if name_marker:
-            logging.info(f"В таблицу категории {name_marker} добавлено {inserted_category_count} объявлений.")
-
-    except json.JSONDecodeError:
-        logging.error(f"Ошибка декодирования JSON файла: {json_file_path}", exc_info=True)
-    except Exception as e:
-        logging.error(f"Ошибка во время загрузки данных в БД: {e}", exc_info=True)
-    finally:
-        if db_client:
-            db_client.close()
 
 def main():
     parse_html()
-    load_parsed_in_db() # Добавляем вызов функции загрузки в БД
     
 
 if __name__ == "__main__":

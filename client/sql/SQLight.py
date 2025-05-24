@@ -1,283 +1,215 @@
 import sqlite3
 import os
 import json
-from typing import Set, Dict, Any, Optional
-
-DEFAULT_DB_PATH = "db/avito_notifier.db"
+from typing import Dict, Any, List
+from client.sql.config import DEFAULT_DB_PATH, DB_CONNECTION_SETTINGS
+from client.sql.schema import *
 
 class DatabaseClient:
+    """
+    SQLite клиент для работы с базой данных
+    """
+    
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
-        db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir)
-            print(f"Создана директория для базы данных: {db_dir}")
-
         self.db_path = db_path
         self.conn = None
         self.cursor = None
+        
+        self.connect()
+        
+        if not os.path.exists(self.db_path):
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            print(f"Создана директория для базы данных: {self.db_path}")
+
+        if not self.conn:
+            raise Exception("Не удалось подключиться к базе данных. Загрузка в БД отменена.")
+    
+    #  --------BASE--------
+    def connect(self):
+        """Подключение к SQLite базе данных"""
         try:
-            self.conn = sqlite3.connect(self.db_path)
+            self.conn = sqlite3.connect(self.db_path, **DB_CONNECTION_SETTINGS)
             self.conn.row_factory = sqlite3.Row
             self.cursor = self.conn.cursor()
-            print(f"Успешное подключение к базе данных: {self.db_path}")
-            self.create_tables()
-        except sqlite3.Error as e:
-            print(f"Ошибка при подключении или инициализации БД ({self.db_path}): {e}")
-
-    def create_tables(self):
-        if not self.cursor:
-            print("Ошибка: курсор базы данных не инициализирован.")
-            return
-            
-        try:
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sent_items (
-                item_id TEXT PRIMARY KEY,
-                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-
-            self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS items (
-                item_id TEXT PRIMARY KEY,
-                parsed_at TEXT,
-                title TEXT,
-                price INTEGER,
-                price_text TEXT,
-                url TEXT UNIQUE,
-                seller_url TEXT,
-                description TEXT,
-                published_date_text TEXT,
-                phone_state TEXT,
-                condition TEXT,
-                location TEXT,
-                seller_name TEXT,
-                seller_rating TEXT,
-                seller_reviews_count INTEGER,
-                seller_reviews_text TEXT,
-                badges TEXT,  -- JSON string
-                images TEXT, -- JSON string
-                params TEXT, -- JSON string
-                last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-            self.conn.commit()
-            print("Таблицы 'sent_items' и 'items' проверены/созданы.")
-        except sqlite3.Error as e:
-            print(f"Ошибка при создании таблиц: {e}")
-
-    def is_item_sent(self, item_id: str) -> bool:
-        if not self.cursor:
-            print("Ошибка: курсор базы данных не инициализирован.")
-            return False
-            
-        try:
-            self.cursor.execute("SELECT 1 FROM sent_items WHERE item_id = ?", (item_id,))
-            return self.cursor.fetchone() is not None
-        except sqlite3.Error as e:
-            print(f"Ошибка при проверке item_id='{item_id}': {e}")
-            return False
-
-    def add_sent_item(self, item_id: str) -> bool:
-        if not self.cursor:
-            print("Ошибка: курсор базы данных не инициализирован.")
-            return False
-            
-        try:
-            self.cursor.execute("INSERT OR IGNORE INTO sent_items (item_id) VALUES (?)", (item_id,))
-            self.conn.commit()
-            return self.is_item_sent(item_id)
-        except sqlite3.Error as e:
-            print(f"Ошибка при добавлении item_id='{item_id}' в sent_items: {e}")
-            return False
-
-    def get_all_sent_items(self) -> Set[str]:
-        if not self.cursor:
-            print("Ошибка: курсор базы данных не инициализирован.")
-            return set()
-            
-        try:
-            self.cursor.execute("SELECT item_id FROM sent_items")
-            rows = self.cursor.fetchall()
-            return set(row[0] for row in rows)
-        except sqlite3.Error as e:
-            print(f"Ошибка при получении всех отправленных item_id: {e}")
-            return set()
-
-    def add_or_update_item(self, item_data: Dict[str, Any]) -> bool:
-        if not self.cursor or not self.conn:
-            print("Ошибка: база данных не инициализирована.")
-            return False
-
-        item_id = item_data.get("item_id")
-        if not item_id:
-            print("Ошибка: 'item_id' отсутствует в данных для добавления/обновления.")
-            return False
-
-        columns = [
-            "item_id", "parsed_at", "title", "price", "price_text", "url",
-            "seller_url", "description", "published_date_text", "phone_state",
-            "condition", "location", "seller_name", "seller_rating",
-            "seller_reviews_count", "seller_reviews_text", "badges", "images", "params"
-        ]
-
-        values = []
-        for col in columns:
-            value = item_data.get(col)
-            if col in ["badges", "images", "params"] and value is not None:
-                try:
-                    values.append(json.dumps(value, ensure_ascii=False))
-                except TypeError as e:
-                    print(f"Ошибка сериализации JSON для колонки '{col}', item_id='{item_id}': {e}. Сохраняем как NULL.")
-                    values.append(None)
-            else:
-                values.append(value)
-
-        sql = f"""
-        INSERT INTO items ({', '.join(columns)})
-        VALUES ({', '.join('?'*len(columns))})
-        ON CONFLICT(item_id) DO UPDATE SET
-            parsed_at=excluded.parsed_at,
-            title=excluded.title,
-            price=excluded.price,
-            price_text=excluded.price_text,
-            url=excluded.url,
-            seller_url=excluded.seller_url,
-            description=excluded.description,
-            published_date_text=excluded.published_date_text,
-            phone_state=excluded.phone_state,
-            condition=excluded.condition,
-            location=excluded.location,
-            seller_name=excluded.seller_name,
-            seller_rating=excluded.seller_rating,
-            seller_reviews_count=excluded.seller_reviews_count,
-            seller_reviews_text=excluded.seller_reviews_text,
-            badges=excluded.badges,
-            images=excluded.images,
-            params=excluded.params,
-            last_updated_at=CURRENT_TIMESTAMP
-        """
-
-        try:
-            self.cursor.execute(sql, tuple(values))
-            self.conn.commit()
-            return True
-        except sqlite3.Error as e:
-            print(f"Ошибка при добавлении/обновлении item_id='{item_id}' в таблицу items: {e}")
-            return False
-
-    def create_category_table(self, category_name: str):
-        """Создает новую таблицу для конкретной категории"""
-        if not self.cursor:
-            print(f"Ошибка: курсор базы данных не инициализирован. Невозможно создать таблицу {category_name}.")
-            return False
-            
-        # Очищаем имя категории для использования в качестве имени таблицы
-        safe_table_name = f"category_{category_name.lower().replace('-', '_')}"
-        
-        try:
-            self.cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {safe_table_name} (
-                item_id TEXT PRIMARY KEY,
-                parsed_at TEXT,
-                title TEXT,
-                price INTEGER,
-                price_text TEXT,
-                url TEXT UNIQUE,
-                seller_url TEXT,
-                description TEXT,
-                published_date_text TEXT,
-                phone_state TEXT,
-                condition TEXT,
-                location TEXT,
-                seller_name TEXT,
-                seller_rating TEXT,
-                seller_reviews_count INTEGER,
-                seller_reviews_text TEXT,
-                badges TEXT,  -- JSON string
-                images TEXT, -- JSON string
-                params TEXT, -- JSON string
-                last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """)
-            self.conn.commit()
-            print(f"Таблица '{safe_table_name}' успешно создана/проверена.")
-            return True
-        except sqlite3.Error as e:
-            print(f"Ошибка при создании таблицы '{safe_table_name}': {e}")
-            return False
+            print(f"Подключение к базе данных {self.db_path} установлено")
+        except Exception as e:
+            print(f"Ошибка при подключении к БД ({self.db_path}): {e}")
+            raise
     
-    def add_or_update_item_to_category(self, category_name: str, item_data: Dict[str, Any]) -> bool:
-        """Добавляет или обновляет запись в таблице категории"""
-        if not self.cursor or not self.conn:
-            print(f"Ошибка: база данных не инициализирована. Невозможно добавить данные в {category_name}.")
-            return False
-
-        # Очищаем имя категории для использования в имени таблицы
-        safe_table_name = f"category_{category_name.lower().replace('-', '_')}"
-        
-        item_id = item_data.get("item_id")
-        if not item_id:
-            print(f"Ошибка: 'item_id' отсутствует в данных для добавления в таблицу {safe_table_name}.")
-            return False
-
-        columns = [
-            "item_id", "parsed_at", "title", "price", "price_text", "url",
-            "seller_url", "description", "published_date_text", "phone_state",
-            "condition", "location", "seller_name", "seller_rating",
-            "seller_reviews_count", "seller_reviews_text", "badges", "images", "params"
-        ]
-
-        values = []
-        for col in columns:
-            value = item_data.get(col)
-            if col in ["badges", "images", "params"] and value is not None:
-                try:
-                    values.append(json.dumps(value, ensure_ascii=False))
-                except TypeError as e:
-                    print(f"Ошибка сериализации JSON для колонки '{col}', item_id='{item_id}': {e}. Сохраняем как NULL.")
-                    values.append(None)
-            else:
-                values.append(value)
-
-        sql = f"""
-        INSERT INTO {safe_table_name} ({', '.join(columns)})
-        VALUES ({', '.join('?'*len(columns))})
-        ON CONFLICT(item_id) DO UPDATE SET
-            parsed_at=excluded.parsed_at,
-            title=excluded.title,
-            price=excluded.price,
-            price_text=excluded.price_text,
-            url=excluded.url,
-            seller_url=excluded.seller_url,
-            description=excluded.description,
-            published_date_text=excluded.published_date_text,
-            phone_state=excluded.phone_state,
-            condition=excluded.condition,
-            location=excluded.location,
-            seller_name=excluded.seller_name,
-            seller_rating=excluded.seller_rating,
-            seller_reviews_count=excluded.seller_reviews_count,
-            seller_reviews_text=excluded.seller_reviews_text,
-            badges=excluded.badges,
-            images=excluded.images,
-            params=excluded.params,
-            last_updated_at=CURRENT_TIMESTAMP
-        """
-
-        try:
-            self.cursor.execute(sql, tuple(values))
-            self.conn.commit()
-            return True
-        except sqlite3.Error as e:
-            print(f"Ошибка при добавлении/обновлении item_id='{item_id}' в таблицу {safe_table_name}: {e}")
-            return False
-
-    def close(self):
+    def disconnect(self):
+        """Отключение от базы данных"""
         if self.conn:
             try:
                 self.conn.commit()
                 self.conn.close()
                 print(f"Соединение с базой данных {self.db_path} закрыто.")
-            except sqlite3.Error as e:
+            except Exception as e:
                 print(f"Ошибка при закрытии соединения с БД: {e}")
+
+    def close(self):
+        """Закрывает соединение с базой данных"""
+        self.disconnect()
+    
+    #  --------SYSTEM TABLES----------------
+
+    # def _initialize_tables(self):
+    #     """Инициализирует основные таблицы"""
+    #     ddl = get_items_table_ddl(table_name)
+    #     success = self.execute_ddl(ddl)
+
+    #     if not success:
+    #         raise Exception("Ошибка при инициализации таблицы items")
+        
+    #     success = self.execute_ddl(SENT_ITEMS_TABLE_DDL)
+    #     if not success:
+    #         raise Exception("Ошибка при инициализации таблицы sent_items")
+
+
+    def create_category_table(self, category_name: str):
+        """
+        Создает таблицу для конкретной категории
+        """
+        table_name = generate_category_table_name(category_name)
+        ddl = get_items_table_ddl(table_name)
+        success = self.execute_ddl(ddl)
+        
+        if not success:
+            raise Exception(f"Ошибка при создании таблицы {table_name}")
+            
+    #  ---------EXECUTE---------------
+    def execute_ddl(self, ddl_sql: str) -> bool:
+        """
+        Выполнение DDL команд 
+        """
+        if not self.cursor:
+            print("Ошибка: курсор базы данных не инициализирован.")
+            return False
+        
+        try:
+            self.cursor.execute(ddl_sql)
+            self.conn.commit()
+            return True
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении DDL: {e}")
+            return False
+    
+    def execute_query(self, sql: str, params: tuple = None) -> Any:
+        """
+        Выполнение SQL запросов
+        """
+        if not self.cursor:
+            print("Ошибка: курсор базы данных не инициализирован.")
+            return None
+        
+        try:
+            if params:
+                return self.cursor.execute(sql, params)
+            else:
+                return self.cursor.execute(sql)
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении запроса: {e}")
+            return None
+        
+    #  ---------ADD/UPDATE---------------
+    
+    def add_or_update_item(self, item_data, table_name = "items") -> bool:
+        """
+        Добавляет или обновляет объявление
+        """
+        if not self.cursor or not self.conn:
+            print("Ошибка: база данных не инициализирована.")
+            return False
+        
+        values = self.prepare_item_data(item_data)
+        sql = get_upsert_sql(table_name)
+        
+        try:
+            self.cursor.execute(sql, tuple(values))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"Ошибка при добавлении/обновлении объявления: {e}")
+            return False
+    
+    def add_or_update_item_to_category(self, category_name: str, item_data: Dict[str, Any]) -> bool:
+        """
+        Добавляет или обновляет запись в таблице категории
+        """
+        safe_table_name = generate_category_table_name(category_name)
+        
+        # Создаем таблицу если она не существует
+        if not self.create_category_table(category_name):
+            return False
+        
+        return self.add_or_update_item(item_data, safe_table_name)
+    
+    def prepare_item_data(self, item_data: Dict[str, Any]) -> List[Any]:
+        """
+        Подготавливает данные объявления для вставки в БД
+        """
+        values = []
+        for col in ITEM_COLUMNS:
+            value = item_data.get(col)
+            if col in JSON_COLUMNS and value is not None:
+                try:
+                    values.append(json.dumps(value, ensure_ascii=False))
+                except TypeError as e:
+                    print(f"Ошибка сериализации JSON для колонки '{col}': {e}. Сохраняем как NULL.")
+                    values.append(None)
+            else:
+                values.append(value)
+        return values
+
+    #  ---------NOTIFICATIONS---------------
+
+    # def is_item_sent(self, item_id: str) -> bool:
+    #     """
+    #     Проверяет, было ли отправлено уведомление для объявления
+    #     """
+    #     if not self.cursor:
+    #         print("Ошибка: курсор базы данных не инициализирован.")
+    #         return False
+        
+    #     try:
+    #         self.cursor.execute("SELECT 1 FROM sent_items WHERE item_id = ?", (item_id,))
+    #         return self.cursor.fetchone() is not None
+    #     except sqlite3.Error as e:
+    #         print(f"Ошибка при проверке item_id='{item_id}': {e}")
+    #         return False
+    
+    # def add_sent_item(self, item_id: str) -> bool:
+    #     """
+    #     Добавляет запись об отправленном уведомлении
+    #     """
+    #     if not self.cursor:
+    #         print("Ошибка: курсор базы данных не инициализирован.")
+    #         return False
+        
+    #     try:
+    #         self.cursor.execute("INSERT OR IGNORE INTO sent_items (item_id) VALUES (?)", (item_id,))
+    #         self.conn.commit()
+    #         return self.is_item_sent(item_id)
+    #     except sqlite3.Error as e:
+    #         print(f"Ошибка при добавлении item_id='{item_id}' в sent_items: {e}")
+    #         return False
+    
+    # def get_all_sent_items(self) -> Set[str]:
+    #     """
+    #     Возвращает все ID отправленных объявлений 
+    #     """
+    #     if not self.cursor:
+    #         print("Ошибка: курсор базы данных не инициализирован.")
+    #         return set()
+        
+    #     try:
+    #         self.cursor.execute("SELECT item_id FROM sent_items")
+    #         rows = self.cursor.fetchall()
+    #         return set(row[0] for row in rows)
+    #     except sqlite3.Error as e:
+    #         print(f"Ошибка при получении всех отправленных item_id: {e}")
+    #         return set()
+# Для обратной совместимости
+
+if __name__ == "__main__":
+    db_client = DatabaseClient("data/test_db.db")
+    db_client.create_category_table("test_category")
