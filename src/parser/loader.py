@@ -22,11 +22,7 @@ def load_parsed_in_db(time_marker=None, name_marker=None):
         return
 
     try:
-        db_client = DatabaseClient() 
-
-        if name_marker:
-            logging.info(f"Создание таблицы для категории: {name_marker}")
-            db_client.create_category_table(name_marker)
+        db_client = DatabaseClient(name_marker=name_marker) 
 
         with open(json_file_path, 'r', encoding='utf-8') as f:
             all_items_data = json.load(f)
@@ -68,22 +64,14 @@ def load_parsed_in_db(time_marker=None, name_marker=None):
                 "params": item_data.get("params")  # Передаем как есть, сериализация в db_client
             }
             
-            # Добавляем в общую таблицу items
-            if db_client.add_or_update_item(flat_item):
-                inserted_count += 1 # Считаем все успешные операции
-            else:
-                logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в общую таблицу")
-            
             # Добавляем в категорийную таблицу, если есть name_marker
-            if name_marker:
-                if db_client.add_or_update_item_to_category(name_marker, flat_item):
-                    inserted_category_count += 1
-                else:
-                    logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в таблицу категории {name_marker}")
+            if db_client.upsert_item(flat_item):
+                inserted_category_count += 1
+            else:
+                logging.warning(f"Не удалось добавить/обновить объявление с ID: {flat_item['item_id']} в таблицу категории {name_marker}")
 
         logging.info(f"Загрузка в БД завершена. Успешно обработано {inserted_count} объявлений в общей таблице.")
-        if name_marker:
-            logging.info(f"В таблицу категории {name_marker} добавлено {inserted_category_count} объявлений.")
+
 
     except json.JSONDecodeError:
         logging.error(f"Ошибка декодирования JSON файла: {json_file_path}", exc_info=True)
