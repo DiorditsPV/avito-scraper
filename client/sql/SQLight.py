@@ -52,19 +52,6 @@ class DatabaseClient:
     
     #  --------SYSTEM TABLES----------------
 
-    # def _initialize_tables(self):
-    #     """Инициализирует основные таблицы"""
-    #     ddl = get_items_table_ddl(table_name)
-    #     success = self.execute_ddl(ddl)
-
-    #     if not success:
-    #         raise Exception("Ошибка при инициализации таблицы items")
-        
-    #     success = self.execute_ddl(SENT_ITEMS_TABLE_DDL)
-    #     if not success:
-    #         raise Exception("Ошибка при инициализации таблицы sent_items")
-
-
     def create_category_table(self, category_name: str):
         """
         Создает таблицу для конкретной категории
@@ -160,55 +147,6 @@ class DatabaseClient:
                 values.append(value)
         return values
 
-    #  ---------NOTIFICATIONS---------------
-
-    # def is_item_sent(self, item_id: str) -> bool:
-    #     """
-    #     Проверяет, было ли отправлено уведомление для объявления
-    #     """
-    #     if not self.cursor:
-    #         print("Ошибка: курсор базы данных не инициализирован.")
-    #         return False
-        
-    #     try:
-    #         self.cursor.execute("SELECT 1 FROM sent_items WHERE item_id = ?", (item_id,))
-    #         return self.cursor.fetchone() is not None
-    #     except sqlite3.Error as e:
-    #         print(f"Ошибка при проверке item_id='{item_id}': {e}")
-    #         return False
-    
-    # def add_sent_item(self, item_id: str) -> bool:
-    #     """
-    #     Добавляет запись об отправленном уведомлении
-    #     """
-    #     if not self.cursor:
-    #         print("Ошибка: курсор базы данных не инициализирован.")
-    #         return False
-        
-    #     try:
-    #         self.cursor.execute("INSERT OR IGNORE INTO sent_items (item_id) VALUES (?)", (item_id,))
-    #         self.conn.commit()
-    #         return self.is_item_sent(item_id)
-    #     except sqlite3.Error as e:
-    #         print(f"Ошибка при добавлении item_id='{item_id}' в sent_items: {e}")
-    #         return False
-    
-    # def get_all_sent_items(self) -> Set[str]:
-    #     """
-    #     Возвращает все ID отправленных объявлений 
-    #     """
-    #     if not self.cursor:
-    #         print("Ошибка: курсор базы данных не инициализирован.")
-    #         return set()
-        
-    #     try:
-    #         self.cursor.execute("SELECT item_id FROM sent_items")
-    #         rows = self.cursor.fetchall()
-    #         return set(row[0] for row in rows)
-    #     except sqlite3.Error as e:
-    #         print(f"Ошибка при получении всех отправленных item_id: {e}")
-    #         return set()
-# Для обратной совместимости
 
 if __name__ == "__main__":
     db_client = DatabaseClient("data/test_db.db")
