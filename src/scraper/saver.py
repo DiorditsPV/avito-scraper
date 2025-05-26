@@ -7,12 +7,14 @@ def save_items_html(driver, page_num, save_full_page=False, data_dir="data"):
     Сохраняет HTML контейнера с объявлениями в файл
     """
     try:
+        # Подготовка
         if save_full_page:
             _save_full_page_html(driver, page_num, data_dir)
 
         items_container = driver.find_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR)
         items_html = items_container.get_attribute("outerHTML")
 
+        # Сохранение
         with open(f"{data_dir}/items_page_{page_num}.html", "w", encoding="utf-8") as f:
             f.write(items_html)
 
