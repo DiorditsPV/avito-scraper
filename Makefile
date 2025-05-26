@@ -23,9 +23,13 @@ notify: $(JSON_OUTPUT)
 
 all: notify
 
-clean:
-	@echo "Очистка сгенерированных файлов..."
-	rm -f $(JSON_OUTPUT) sent_items.log $(DB_FILE) 
-	@echo "Очистка завершена."
+build-dist:
+	@echo "Сборка проекта..."
+	$(PYTHON) -m build
 
-$(JSON_OUTPUT):
+clean-dist:
+	@echo "Очистка сгенерированных файлов..."
+	rm -rf dist *.egg-info */*.egg-info **/__pycache__/
+
+clean: clean-dist
+	
