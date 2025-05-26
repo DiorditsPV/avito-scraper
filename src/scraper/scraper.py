@@ -12,12 +12,11 @@ class AvitoScraper:
     Класс для скрейпинга объявлений с Avito
     """
     
-    def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, enable_pagination: bool = True, headless: bool = True, max_pages: int = MAX_PAGES):
+    def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, headless: bool = True, max_pages: int = MAX_PAGES):
         """
         Инициализация скрейпера
         """
         self.url_key = url_key # category name
-        self.enable_pagination = enable_pagination
         self.headless = headless
         
         # Состояние скрейпинга
@@ -38,33 +37,24 @@ class AvitoScraper:
         print(f"Инициализация скрейпинга для категории: {self.url_key}")
         print(f"Рабочая директория: {self.parsing_dir}")
     
-    def _load_initial_page(self, parser: SeleniumParser) -> int:
+    def _process_all_pages(self, parser: SeleniumParser) -> tuple[int, int]:
         """
-        Загружает первую страницу и сохраняет данные
+        Обрабатывает все страницы: первую и последующие через пагинацию
         """
-        print("Загрузка первой страницы...")
+        print("Загрузка и обработка всех страниц...")
+        
+        # Загружаем первую страницу
         parser.go_to_page(self.working_url)
         parser.refresh_page()
         parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME)
-        print("Контейнер с объявлениями загружен")
+        total_items = save_items_html(parser.driver, 1, data_dir=self.parsing_dir)
+        print(f"Страница 1: найдено {total_items} объявлений")
         
-        items_count = save_items_html(
-            parser.driver, 
-            1, 
-            data_dir=self.parsing_dir
-        )
-        
-        print(f"Первая страница: найдено {items_count} объявлений")
-        return items_count
-    
-    def _process_pagination(self, parser: SeleniumParser) -> tuple[int, int]:
-        """
-        Обрабатывает пагинацию и сохраняет данные со всех страниц
-        """
-        print("\n--- Начало пагинации ---")
+        # Проверяем есть ли возможность пагинации
+        pages_processed = 1
         page_num = 2
-        total_pagination_items = 0
         
+        # Обрабатываем остальные страницы через пагинацию
         for driver_instance in parser.handle_pagination(
             NEXT_BUTTON_LOCATOR[0],
             NEXT_BUTTON_LOCATOR[1],
@@ -75,15 +65,15 @@ class AvitoScraper:
                 page_num,
                 data_dir=self.parsing_dir,
             )
-            total_pagination_items += items_count
+            total_items += items_count
             print(f"Страница {page_num}: {items_count} объявлений")
             page_num += 1
+            pages_processed += 1
             print("-" * 30)
         
-        pages_processed = page_num - 1
         print(f"--- Пагинация завершена: обработано {pages_processed} страниц ---")
         
-        return total_pagination_items, pages_processed
+        return total_items, pages_processed
     
     def _finalize_scraping(self):
         """
@@ -93,7 +83,7 @@ class AvitoScraper:
         print(f"Успешность: {self.success}")
         print(f"Всего объявлений: {self.total_items}")
         
-        if not check_and_cleanup_directory(self.data_dir):
+        if not check_and_cleanup_directory(self.parsing_dir):
             print("Директория была удалена из-за недостатка данных")
             return None
         
@@ -109,15 +99,9 @@ class AvitoScraper:
             self._initialize_session()
             
             with SeleniumParser(headless=self.headless) as parser:
-                self.total_items = self._load_initial_page(parser)
-                
-                # Обработка пагинации
-                if self.enable_pagination:
-                    pagination_items, pages_processed = self._process_pagination(parser)
-                    self.total_items += pagination_items
-                    print(f"\nИтого: {self.total_items} объявлений на {pages_processed} страницах")
-                else:
-                    print("Пагинация отключена. Обработана только первая страница.")
+                # Обработка всех страниц в едином процессе
+                self.total_items, pages_processed = self._process_all_pages(parser)
+                print(f"\nИтого: {self.total_items} объявлений на {pages_processed} страницах")
                 
                 # Отмечаем успешное выполнение
                 self.success = True
@@ -142,32 +126,20 @@ class AvitoScraper:
             'url_key': self.url_key,
             'total_items': self.total_items,
             'success': self.success,
-            'data_dir': self.data_dir,
+            'data_dir': self.parsing_dir,
             'dir_suffix': self.dir_suffix,
-            'pagination_enabled': self.enable_pagination
+            'max_pages': self.max_pages
         }
 
 
-def scrape(enable_pagination=True, url_key=None, headless=True):
-    """
-    Функция-обертка для обратной совместимости
-    """
-    if url_key is None:
-        raise ValueError("url_key не может быть None")
-    
-    scraper = AvitoScraper(url_key, enable_pagination, headless)
-    return scraper.run()
-
-
-def main():
-    """Точка входа для запуска скрейпера"""
+def scrape():
     url = "https://www.avito.ru/moskva_i_mo/noutbuki/apple-ASgBAgICAUSo5A302WY?cd=1&f=ASgBAQICAUSo5A302WYBQJ7kDcTWzK0QpprGEJjNrRCOza0QkqPEEbKjxBGc2O8R1NjvEbDY7xHCmZYVqOOXFbyxnhU&q=macbook+pro&user=1"
     scraper = AvitoScraper(
         "macbook_pro", 
         url, 
         "data/raw",
-        max_pages=10,
-        enable_pagination=True)
+        max_pages=10
+    )
     result = scraper.run()
     
     # Вывод статистики
@@ -178,4 +150,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    scrape()
+   
