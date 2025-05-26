@@ -71,7 +71,7 @@ class SeleniumParser:
             page_count += 1
 
             try:
-                wait = WebDriverWait(self.driver, 14)
+                wait = WebDriverWait(self.driver, 5)
                 next_button = wait.until(
                     EC.element_to_be_clickable((next_button_locator_type, next_button_locator_value))
                 )
