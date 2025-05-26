@@ -1,7 +1,7 @@
 import os
 import json
 from src.parser.utils import get_latest_directory
-from client.sql.SQLight import DatabaseClient
+from src.client.sql.SQLight import DatabaseClient
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

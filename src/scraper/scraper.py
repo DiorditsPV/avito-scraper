@@ -1,6 +1,6 @@
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from client.selenium.selenium import SeleniumParser
+from src.client.selenium.selenium import SeleniumParser
 
 from src.scraper.config import *
 from src.scraper.utils import generate_data_directory, create_data_directory, check_and_cleanup_directory
