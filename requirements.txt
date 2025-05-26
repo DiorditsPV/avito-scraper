@@ -1,23 +1,5 @@
-attrs==25.3.0
-beautifulsoup4==4.12.3
-certifi==2025.4.26
-charset-normalizer==3.4.2
-dotenv==0.9.9
-h11==0.16.0
-idna==3.10
-ltm @ git+https://github.com/DiorditsPV/light-telegram-notifyer@9ebf8d863865b185dba3161c0a3bc194aa176905
-outcome==1.3.0.post0
-packaging==25.0
-PySocks==1.7.1
-python-dotenv==1.1.0
-requests==2.32.3
 selenium==4.18.1
-sniffio==1.3.1
-sortedcontainers==2.4.0
-soupsieve==2.7
-trio==0.30.0
-trio-websocket==0.12.2
-typing_extensions==4.13.2
-urllib3==2.4.0
-webdriver-manager==4.0.2
-wsproto==1.2.0
+requests
+dotenv
+python-dotenv
+webdriver-manager
