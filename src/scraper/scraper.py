@@ -12,35 +12,31 @@ class AvitoScraper:
     Класс для скрейпинга объявлений с Avito
     """
     
-    def __init__(self, url_key: str, enable_pagination: bool = True, headless: bool = True):
+    def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, enable_pagination: bool = True, headless: bool = True, max_pages: int = MAX_PAGES):
         """
         Инициализация скрейпера
         """
-        self.url_key = url_key
+        self.url_key = url_key # category name
         self.enable_pagination = enable_pagination
         self.headless = headless
         
         # Состояние скрейпинга
-        self.data_dir = None
-        self.dir_suffix = None
-        self.working_url = None
+        self.data_dir = data_dir
+        self.dir_suffix = None # timestamp + category name
+        self.working_url = url
         self.total_items = 0
         self.success = False
-        
-        # Валидация url_key
-        if url_key not in SCRAPING_URLS:
-            raise ValueError(f"Неизвестный url_key: {url_key}. Доступные: {list(SCRAPING_URLS.keys())}")
+        self.max_pages = max_pages
     
     def _initialize_session(self):
         """
         Инициализирует сессию скрейпинга: создает директории и настройки
         """
-        self.data_dir, self.dir_suffix = generate_data_directory(DEFAULT_DATA_DIR, self.url_key)
-        create_data_directory(self.data_dir)
-        self.working_url = SCRAPING_URLS[self.url_key]
+        self.parsing_dir, self.dir_suffix = generate_data_directory(self.data_dir, self.url_key)
+        create_data_directory(self.parsing_dir)
         
         print(f"Инициализация скрейпинга для категории: {self.url_key}")
-        print(f"Рабочая директория: {self.data_dir}")
+        print(f"Рабочая директория: {self.parsing_dir}")
     
     def _load_initial_page(self, parser: SeleniumParser) -> int:
         """
@@ -55,8 +51,7 @@ class AvitoScraper:
         items_count = save_items_html(
             parser.driver, 
             1, 
-            save_full_page=SAVE_FULL_PAGE, 
-            data_dir=self.data_dir
+            data_dir=self.parsing_dir
         )
         
         print(f"Первая страница: найдено {items_count} объявлений")
@@ -73,13 +68,12 @@ class AvitoScraper:
         for driver_instance in parser.handle_pagination(
             NEXT_BUTTON_LOCATOR[0],
             NEXT_BUTTON_LOCATOR[1],
-            max_pages=MAX_PAGES
+            max_pages=self.max_pages
         ):
             items_count = save_items_html(
                 driver_instance,
                 page_num,
-                save_full_page=SAVE_FULL_PAGE,
-                data_dir=self.data_dir,
+                data_dir=self.parsing_dir,
             )
             total_pagination_items += items_count
             print(f"Страница {page_num}: {items_count} объявлений")
@@ -114,9 +108,7 @@ class AvitoScraper:
             # Инициализация
             self._initialize_session()
             
-            # Скрейпинг с использованием Selenium
             with SeleniumParser(headless=self.headless) as parser:
-                # Загрузка первой страницы
                 self.total_items = self._load_initial_page(parser)
                 
                 # Обработка пагинации
@@ -169,7 +161,13 @@ def scrape(enable_pagination=True, url_key=None, headless=True):
 
 def main():
     """Точка входа для запуска скрейпера"""
-    scraper = AvitoScraper("north_face_jackets", enable_pagination=True)
+    url = "https://www.avito.ru/moskva_i_mo/noutbuki/apple-ASgBAgICAUSo5A302WY?cd=1&f=ASgBAQICAUSo5A302WYBQJ7kDcTWzK0QpprGEJjNrRCOza0QkqPEEbKjxBGc2O8R1NjvEbDY7xHCmZYVqOOXFbyxnhU&q=macbook+pro&user=1"
+    scraper = AvitoScraper(
+        "macbook_pro", 
+        url, 
+        "data/raw",
+        max_pages=10,
+        enable_pagination=True)
     result = scraper.run()
     
     # Вывод статистики

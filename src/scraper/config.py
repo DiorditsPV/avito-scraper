@@ -22,4 +22,3 @@ NEXT_BUTTON_LOCATOR = (By.CSS_SELECTOR, '[data-marker="pagination-button/nextPag
 
 # Настройки файлов и директорий
 DEFAULT_DATA_DIR = "data/raw"
-SAVE_FULL_PAGE = False 
