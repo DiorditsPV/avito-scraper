@@ -109,7 +109,7 @@ def scrape(enable_pagination=True, url_key=None):
 
 def main():
     """Точка входа для запуска скрейпера"""
-    scrape(url_key="macbook_pro")
+    scrape(url_key="north_face_jackets")
 
 
 if __name__ == "__main__":
