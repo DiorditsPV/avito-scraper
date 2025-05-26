@@ -2,8 +2,8 @@ import sqlite3
 import os
 import json
 from typing import Dict, Any, List
-from client.sql.config import DEFAULT_DB_PATH, DB_CONNECTION_SETTINGS
-from client.sql.schema import *
+from .config import DEFAULT_DB_PATH, DB_CONNECTION_SETTINGS
+from .schema import *
 
 class DatabaseClient:
     """
