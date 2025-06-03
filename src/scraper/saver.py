@@ -1,5 +1,5 @@
 from selenium.webdriver.common.by import By
-from src.scraper.config import ITEMS_CONTAINER_SELECTOR, ITEM_SELECTOR
+from .config import ITEMS_CONTAINER_SELECTOR, ITEM_SELECTOR
 
 
 def save_items_html(driver, page_num, data_dir="data"):

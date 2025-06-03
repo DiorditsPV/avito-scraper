@@ -1,10 +1,11 @@
+import logging
+from ..client.selenium.selenium import SeleniumParser
+import time
+from .config import *
+from .utils import generate_data_directory, create_data_directory, check_and_cleanup_directory
+from .saver import save_items_html
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from src.client.selenium.selenium import SeleniumParser
-
-from src.scraper.config import *
-from src.scraper.utils import generate_data_directory, create_data_directory, check_and_cleanup_directory
-from src.scraper.saver import save_items_html
 
 
 class AvitoScraper:

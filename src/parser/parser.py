@@ -1,10 +1,11 @@
-import os
 import json
+import os
+import logging
 from bs4 import BeautifulSoup
 import re
 from datetime import datetime
-import logging
-from src.parser.utils import get_latest_directory
+from typing import Dict, Any, List
+from .utils import get_latest_directory
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
