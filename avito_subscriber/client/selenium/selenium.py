@@ -11,16 +11,34 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 class SeleniumParser:
     def __init__(self, headless=True):
         options = webdriver.ChromeOptions()
-        if headless:
-            # options.add_argument('--headless')
-            options.add_argument('--disable-gpu')
+        
+        # Критически важные опции для Docker/контейнерной среды
+        options.add_argument('--headless')  # Всегда включаем headless в production
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')  # Критично для Docker
+        options.add_argument('--disable-dev-shm-usage')  # Критично для Docker
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-plugins')
+        options.add_argument('--disable-images')  # Ускоряет загрузку
+        
+        # Размер окна и прочие настройки
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--log-level=3')
+        options.add_argument('--silent')
+        options.add_argument('--disable-logging')
+        options.add_argument('--disable-background-timer-throttling')
+        options.add_argument('--disable-backgrounding-occluded-windows')
+        options.add_argument('--disable-renderer-backgrounding')
+        options.add_argument('--disable-features=TranslateUI')
+        options.add_argument('--disable-ipc-flooding-protection')
+        
+        # User agent для избежания блокировки
+        options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
 
         try:
             service = ChromeService(executable_path=ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)
-            print("WebDriver успешно инициализирован.")
+            print("WebDriver успешно инициализирован в headless режиме для Docker среды.")
         except Exception as e:
             print(f"Ошибка инициализации WebDriver: {e}")
             raise
