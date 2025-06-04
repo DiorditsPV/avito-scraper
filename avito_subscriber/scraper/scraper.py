@@ -26,7 +26,7 @@ class AvitoScraper:
         self.total_items = 0
         self.success = False
         self.max_pages = max_pages
-        self.debug_dir = os.path.join(data_dir, "debug")
+        self.screenshots_dir = "/opt/airflow/screenshots"
     
     def _initialize_session(self):
         """
@@ -35,26 +35,25 @@ class AvitoScraper:
         self.parsing_dir, self.dir_suffix = generate_data_directory(self.data_dir, self.url_key)
         create_data_directory(self.parsing_dir)
         
-        # Создаем директорию для отладки
-        os.makedirs(self.debug_dir, exist_ok=True)
+        # Создаем директорию для скриншотов
+        os.makedirs(self.screenshots_dir, exist_ok=True)
         
         print(f"Инициализация скрейпинга для категории: {self.url_key}")
         print(f"Рабочая директория: {self.parsing_dir}")
-        print(f"Директория отладки: {self.debug_dir}")
     
-    def _save_debug_html(self, parser: SeleniumParser, error_context: str):
+    def _save_debug_screenshot(self, parser: SeleniumParser, error_context: str):
         """
-        Сохраняет HTML страницы в директорию debug для диагностики
+        Создает скриншот страницы для диагностики
         """
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"debug_{self.url_key}_{error_context}_{timestamp}.html"
-        filepath = os.path.join(self.debug_dir, filename)
+        filename = f"debug_{self.url_key}_{error_context}_{timestamp}.png"
+        filepath = os.path.join(self.screenshots_dir, filename)
         
         try:
-            parser.save_html(filepath)
-            print(f"HTML страницы сохранен для диагностики: {filepath}")
+            parser.driver.save_screenshot(filepath)
+            print(f"Скриншот сохранен для диагностики: {filepath}")
         except Exception as e:
-            print(f"Ошибка сохранения debug HTML: {e}")
+            print(f"Ошибка создания скриншота: {e}")
     
     def _process_all_pages(self, parser: SeleniumParser) -> tuple[int, int]:
         """
@@ -70,7 +69,7 @@ class AvitoScraper:
             parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME)
         except TimeoutException as e:
             print(f"Таймаут при ожидании контейнера объявлений на первой странице")
-            self._save_debug_html(parser, "timeout_first_page")
+            self._save_debug_screenshot(parser, "timeout_first_page")
             raise
         
         total_items = save_items_html(parser.driver, 1, data_dir=self.parsing_dir)
