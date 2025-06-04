@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 
 class SeleniumParser:
-    def __init__(self, headless=True):
+    def __init__(self, headless=True, remote_selenium_url=None):
         options = webdriver.ChromeOptions()
         
         # Критически важные опции для Docker/контейнерной среды
@@ -43,33 +43,53 @@ class SeleniumParser:
         options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
 
         try:
-            # Диагностика: проверяем наличие Chrome
-            try:
-                chrome_version = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
-                print(f"Chrome версия: {chrome_version.stdout.strip()}")
-            except FileNotFoundError:
-                print("ВНИМАНИЕ: Google Chrome не найден в системе!")
-                print("Установите Chrome командой: apt-get install -y google-chrome-stable")
-            
-            # Попытка использовать системный chromedriver если есть
-            system_chromedriver = '/usr/bin/chromedriver'
-            if os.path.exists(system_chromedriver):
-                print(f"Используем системный ChromeDriver: {system_chromedriver}")
-                service = ChromeService(executable_path=system_chromedriver)
+            if remote_selenium_url:
+                # Используем удаленный Selenium Grid
+                print(f"Подключение к удаленному Selenium: {remote_selenium_url}")
+                self.driver = webdriver.Remote(command_executor=remote_selenium_url, options=options)
+                print("WebDriver успешно подключен к удаленному Selenium Grid.")
             else:
-                print("Загружаем ChromeDriver через webdriver-manager...")
-                service = ChromeService(executable_path=ChromeDriverManager().install())
-            
-            self.driver = webdriver.Chrome(service=service, options=options)
-            print("WebDriver успешно инициализирован в headless режиме для Docker среды.")
+                # Локальная инициализация (оригинальный код)
+                # Диагностика: проверяем наличие Chrome/Chromium
+                chrome_found = False
+                try:
+                    chrome_version = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
+                    print(f"Chrome версия: {chrome_version.stdout.strip()}")
+                    chrome_found = True
+                except FileNotFoundError:
+                    try:
+                        chromium_version = subprocess.run(['chromium-browser', '--version'], capture_output=True, text=True)
+                        print(f"Chromium версия: {chromium_version.stdout.strip()}")
+                        options.binary_location = '/usr/bin/chromium-browser'
+                        chrome_found = True
+                    except FileNotFoundError:
+                        print("ВНИМАНИЕ: Ни Google Chrome, ни Chromium не найдены в системе!")
+                        print("Установите Chrome: apt-get install -y google-chrome-stable")
+                        print("Или Chromium: apt-get install -y chromium-browser")
+                
+                # Попытка использовать системный chromedriver если есть
+                system_chromedriver = '/usr/bin/chromedriver'
+                if os.path.exists(system_chromedriver):
+                    print(f"Используем системный ChromeDriver: {system_chromedriver}")
+                    service = ChromeService(executable_path=system_chromedriver)
+                else:
+                    print("Загружаем ChromeDriver через webdriver-manager...")
+                    service = ChromeService(executable_path=ChromeDriverManager().install())
+                
+                self.driver = webdriver.Chrome(service=service, options=options)
+                print("WebDriver успешно инициализирован локально.")
             
         except Exception as e:
             print(f"Ошибка инициализации WebDriver: {e}")
-            print("\nВозможные решения:")
-            print("1. Установите Chrome: apt-get update && apt-get install -y google-chrome-stable")
-            print("2. Установите зависимости: apt-get install -y libglib2.0-0 libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2")
-            print("3. Проверьте права доступа к /dev/shm")
-            print("4. Попробуйте установить ChromeDriver вручную: apt-get install -y chromium-chromedriver")
+            if not remote_selenium_url:
+                print("\nВозможные решения:")
+                print("1. Установите Chrome: apt-get update && apt-get install -y google-chrome-stable")
+                print("2. Или установите Chromium: apt-get install -y chromium-browser")
+                print("3. Установите зависимости: apt-get install -y libglib2.0-0 libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2")
+                print("4. Проверьте права доступа к /dev/shm")
+                print("5. Попробуйте установить ChromeDriver вручную: apt-get install -y chromium-chromedriver")
+            else:
+                print("Проверьте, что Selenium Grid доступен по адресу:", remote_selenium_url)
             raise
 
     def go_to_page(self, url: str):
