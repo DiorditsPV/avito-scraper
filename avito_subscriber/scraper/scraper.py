@@ -1,10 +1,11 @@
-
 from avito_subscriber.client.selenium.selenium import SeleniumParser
 from avito_subscriber.scraper.config import *
 from avito_subscriber.scraper.utils import generate_data_directory, create_data_directory, check_and_cleanup_directory
 from avito_subscriber.scraper.saver import save_items_html
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
+import os
+import datetime
 
 
 class AvitoScraper:
@@ -19,13 +20,13 @@ class AvitoScraper:
         self.url_key = url_key # category name
         self.headless = headless
         self.external_selenium_url = external_selenium_url
-        # Состояние скрейпинга
         self.data_dir = data_dir
         self.dir_suffix = None # timestamp + category name
         self.working_url = url
         self.total_items = 0
         self.success = False
         self.max_pages = max_pages
+        self.debug_dir = os.path.join(data_dir, "debug")
     
     def _initialize_session(self):
         """
@@ -34,8 +35,26 @@ class AvitoScraper:
         self.parsing_dir, self.dir_suffix = generate_data_directory(self.data_dir, self.url_key)
         create_data_directory(self.parsing_dir)
         
+        # Создаем директорию для отладки
+        os.makedirs(self.debug_dir, exist_ok=True)
+        
         print(f"Инициализация скрейпинга для категории: {self.url_key}")
         print(f"Рабочая директория: {self.parsing_dir}")
+        print(f"Директория отладки: {self.debug_dir}")
+    
+    def _save_debug_html(self, parser: SeleniumParser, error_context: str):
+        """
+        Сохраняет HTML страницы в директорию debug для диагностики
+        """
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"debug_{self.url_key}_{error_context}_{timestamp}.html"
+        filepath = os.path.join(self.debug_dir, filename)
+        
+        try:
+            parser.save_html(filepath)
+            print(f"HTML страницы сохранен для диагностики: {filepath}")
+        except Exception as e:
+            print(f"Ошибка сохранения debug HTML: {e}")
     
     def _process_all_pages(self, parser: SeleniumParser) -> tuple[int, int]:
         """
@@ -46,7 +65,14 @@ class AvitoScraper:
         # Загружаем первую страницу
         parser.go_to_page(self.working_url)
         parser.refresh_page()
-        parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME)
+        
+        try:
+            parser.wait_for_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR, timeout=WAIT_TIME)
+        except TimeoutException as e:
+            print(f"Таймаут при ожидании контейнера объявлений на первой странице")
+            self._save_debug_html(parser, "timeout_first_page")
+            raise
+        
         total_items = save_items_html(parser.driver, 1, data_dir=self.parsing_dir)
         print(f"Страница 1: найдено {total_items} объявлений")
         
@@ -95,15 +121,12 @@ class AvitoScraper:
         Запускает процесс скрейпинга
         """
         try:
-            # Инициализация
             self._initialize_session()
             
             with SeleniumParser(headless=self.headless, remote_selenium_url=self.external_selenium_url) as parser:
-                # Обработка всех страниц в едином процессе
                 self.total_items, pages_processed = self._process_all_pages(parser)
                 print(f"\nИтого: {self.total_items} объявлений на {pages_processed} страницах")
                 
-                # Отмечаем успешное выполнение
                 self.success = True
                 
         except TimeoutException as e:
