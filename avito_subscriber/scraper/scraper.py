@@ -11,21 +11,18 @@ from typing import Literal
 # AvitoScraper
 # -- _initialize_session - создает директории и настройки
 # -- _process_all_pages - обрабатывает все страницы: первую и последующие через пагинацию
+# -- _save_debug_screenshot - сохраняет скриншоты для диагностики
 # -- _finalize_scraping - завершает процесс скрейпинга: проверяет результаты и очищает директории
 # -- run - запускает процесс скрейпинга
 # -- get_stats - возвращает статистику скрейпинга
 
+
+
 MODE: Literal['Local', 'Container'] = os.environ.get('MODE', 'Local')
 
 class AvitoScraper:
-    """
-    Класс для скрейпинга объявлений с Avito
-    """
     
     def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, headless: bool = True, external_selenium_url: str = None, max_pages: int = MAX_PAGES):
-        """
-        Инициализация скрейпера
-        """
         self.url_key = url_key # category name
         self.headless = headless
         self.external_selenium_url = external_selenium_url
@@ -38,9 +35,6 @@ class AvitoScraper:
         self.screenshots_dir = "/opt/airflow/screenshots" if MODE == "Container" else "screenshots"
     
     def _initialize_session(self):
-        """
-        Инициализирует сессию скрейпинга: создает директории и настройки
-        """
         self.parsing_dir, self.dir_suffix = generate_data_directory(self.data_dir, self.url_key)
         create_data_directory(self.parsing_dir)
         
@@ -51,9 +45,6 @@ class AvitoScraper:
         print(f"Рабочая директория: {self.parsing_dir}")
     
     def _save_debug_screenshot(self, parser: SeleniumParser, error_context: str):
-        """
-        Создает скриншот страницы для диагностики
-        """
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"debug_{self.url_key}_{error_context}_{timestamp}.png"
         filepath = os.path.join(self.screenshots_dir, filename)
@@ -65,9 +56,6 @@ class AvitoScraper:
             print(f"Ошибка создания скриншота: {e}")
     
     def _process_all_pages(self, parser: SeleniumParser) -> tuple[int, int]:
-        """
-        Обрабатывает все страницы: первую и последующие через пагинацию
-        """
         print("Загрузка и обработка всех страниц...")
         
         # Загружаем первую страницу
@@ -110,9 +98,6 @@ class AvitoScraper:
         return total_items, pages_processed
     
     def _finalize_scraping(self):
-        """
-        Завершает процесс скрейпинга: проверяет результаты и очищает директории
-        """
         print(f"\n=== Финализация скрейпинга ===")
         print(f"Успешность: {self.success}")
         print(f"Всего объявлений: {self.total_items}")
@@ -125,9 +110,6 @@ class AvitoScraper:
         return self.dir_suffix
     
     def run(self) -> str:
-        """
-        Запускает процесс скрейпинга
-        """
         try:
             self._initialize_session()
             
@@ -150,9 +132,6 @@ class AvitoScraper:
             return result
     
     def get_stats(self) -> dict:
-        """
-        Возвращает статистику скрейпинга
-        """
         return {
             'url_key': self.url_key,
             'total_items': self.total_items,
