@@ -5,6 +5,14 @@ from typing import Dict, Any, List
 from .config import DEFAULT_DB_PATH, DB_CONNECTION_SETTINGS
 from .schema import *
 
+# DatabaseClient
+# -- __init__ - инициализирует соединение с базой данных
+# -- connect - подключается к базе данных
+# -- disconnect - отключается от базы данных
+# -- close - закрывает соединение с базой данных
+# -- execute_query - выполняет SQL запрос
+# -- create_category_table - создает таблицу для конкретной категории
+
 class DatabaseClient:
     """
     SQLite клиент для работы с базой данных

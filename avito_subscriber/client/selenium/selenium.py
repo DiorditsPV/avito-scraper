@@ -11,6 +11,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 
+# SeleniumParser
+# -- __init__ - инициализирует WebDriver
+# -- go_to_page - переходит на страницу
+# -- refresh_page - обновляет страницу
+# -- save_html - сохраняет HTML страницы
+# -- wait_for_element - ожидает элемент
+# -- handle_pagination - обрабатывает пагинацию
+
 class SeleniumParser:
     def __init__(self, headless=True, remote_selenium_url=None):
         options = webdriver.ChromeOptions()
