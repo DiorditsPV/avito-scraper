@@ -189,7 +189,7 @@ class SeleniumParser:
         
     def save_screenshot(self, filepath: str = '/opt/airflow/screenshots'):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"debug_{self.url_key}_{timestamp}.png"
+        filename = f"debug_test_{timestamp}.png"
         filepath = os.path.join(filepath, filename)
         self.driver.save_screenshot(filepath)
         print(f"Скриншот сохранен в файл: {filepath}")
