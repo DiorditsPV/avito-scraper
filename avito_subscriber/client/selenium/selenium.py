@@ -1,5 +1,7 @@
 import time
 import random
+import os
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
@@ -21,6 +23,11 @@ class SeleniumParser:
         options.add_argument('--disable-plugins')
         options.add_argument('--disable-images')  # Ускоряет загрузку
         
+        # Дополнительные опции для стабильности в Docker
+        options.add_argument('--disable-software-rasterizer')
+        options.add_argument('--disable-features=VizDisplayCompositor')
+        options.add_argument('--remote-debugging-port=9222')
+        
         # Размер окна и прочие настройки
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--log-level=3')
@@ -36,11 +43,33 @@ class SeleniumParser:
         options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
 
         try:
-            service = ChromeService(executable_path=ChromeDriverManager().install())
+            # Диагностика: проверяем наличие Chrome
+            try:
+                chrome_version = subprocess.run(['google-chrome', '--version'], capture_output=True, text=True)
+                print(f"Chrome версия: {chrome_version.stdout.strip()}")
+            except FileNotFoundError:
+                print("ВНИМАНИЕ: Google Chrome не найден в системе!")
+                print("Установите Chrome командой: apt-get install -y google-chrome-stable")
+            
+            # Попытка использовать системный chromedriver если есть
+            system_chromedriver = '/usr/bin/chromedriver'
+            if os.path.exists(system_chromedriver):
+                print(f"Используем системный ChromeDriver: {system_chromedriver}")
+                service = ChromeService(executable_path=system_chromedriver)
+            else:
+                print("Загружаем ChromeDriver через webdriver-manager...")
+                service = ChromeService(executable_path=ChromeDriverManager().install())
+            
             self.driver = webdriver.Chrome(service=service, options=options)
             print("WebDriver успешно инициализирован в headless режиме для Docker среды.")
+            
         except Exception as e:
             print(f"Ошибка инициализации WebDriver: {e}")
+            print("\nВозможные решения:")
+            print("1. Установите Chrome: apt-get update && apt-get install -y google-chrome-stable")
+            print("2. Установите зависимости: apt-get install -y libglib2.0-0 libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2")
+            print("3. Проверьте права доступа к /dev/shm")
+            print("4. Попробуйте установить ChromeDriver вручную: apt-get install -y chromium-chromedriver")
             raise
 
     def go_to_page(self, url: str):
