@@ -12,13 +12,13 @@ class AvitoScraper:
     Класс для скрейпинга объявлений с Avito
     """
     
-    def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, headless: bool = True, max_pages: int = MAX_PAGES):
+    def __init__(self, url_key: str, url: str, data_dir: str = DEFAULT_DATA_DIR, headless: bool = True, external_selenium_url: str = None, max_pages: int = MAX_PAGES):
         """
         Инициализация скрейпера
         """
         self.url_key = url_key # category name
         self.headless = headless
-        
+        self.external_selenium_url = external_selenium_url
         # Состояние скрейпинга
         self.data_dir = data_dir
         self.dir_suffix = None # timestamp + category name
@@ -98,7 +98,7 @@ class AvitoScraper:
             # Инициализация
             self._initialize_session()
             
-            with SeleniumParser(headless=self.headless) as parser:
+            with SeleniumParser(headless=self.headless, remote_selenium_url=self.external_selenium_url) as parser:
                 # Обработка всех страниц в едином процессе
                 self.total_items, pages_processed = self._process_all_pages(parser)
                 print(f"\nИтого: {self.total_items} объявлений на {pages_processed} страницах")
