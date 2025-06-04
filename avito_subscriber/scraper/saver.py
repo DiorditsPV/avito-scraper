@@ -1,11 +1,10 @@
 from selenium.webdriver.common.by import By
 from .config import ITEMS_CONTAINER_SELECTOR, ITEM_SELECTOR
 
+# save_items_html - сохраняет HTML контейнера с объявлениями в файл
+# _save_full_page_html - сохраняет полную HTML страницу
 
 def save_items_html(driver, page_num, data_dir="data"):
-    """
-    Сохраняет HTML контейнера с объявлениями в файл
-    """
     try:
         # Подготовка
         items_container = driver.find_element(By.CSS_SELECTOR, ITEMS_CONTAINER_SELECTOR)
@@ -26,9 +25,6 @@ def save_items_html(driver, page_num, data_dir="data"):
 
 
 def _save_full_page_html(driver, page_num, data_dir):
-    """
-    Сохраняет полную HTML страницу
-    """
     full_page_html = driver.page_source
     with open(
         f"{data_dir}/full_page/items_page_{page_num}.html",

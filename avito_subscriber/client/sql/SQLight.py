@@ -14,9 +14,6 @@ from .schema import *
 # -- create_category_table - создает таблицу для конкретной категории
 
 class DatabaseClient:
-    """
-    SQLite клиент для работы с базой данных
-    """
     
     def __init__(self, db_path: str = DEFAULT_DB_PATH, name_marker: str = None):
         self.db_path = db_path
@@ -37,7 +34,6 @@ class DatabaseClient:
     
     #  --------BASE--------
     def connect(self):
-        """Подключение к SQLite базе данных"""
         try:
             self.conn = sqlite3.connect(self.db_path, **DB_CONNECTION_SETTINGS)
             self.conn.row_factory = sqlite3.Row
@@ -48,7 +44,6 @@ class DatabaseClient:
             raise
     
     def disconnect(self):
-        """Отключение от базы данных"""
         if self.conn:
             try:
                 self.conn.commit()
@@ -58,15 +53,11 @@ class DatabaseClient:
                 print(f"[ERROR] disconnect: {e}")
 
     def close(self):
-        """Закрывает соединение с базой данных"""
         self.disconnect()
 
     #  ---------EXECUTE---------------
     
     def execute_query(self, sql: str, params: tuple = None) -> Any:
-        """
-        Выполнение SQL запросов
-        """
         if not self.cursor:
             print("Ошибка: курсор базы данных не инициализирован.")
             return None
@@ -78,9 +69,6 @@ class DatabaseClient:
         
     #  --------SYSTEM TABLES----------------
     def create_category_table(self):
-        """
-        Создает таблицу для конкретной категории
-        """
         ddl = get_items_table_ddl(self.category_name)
         success = self.execute_query(ddl)
         
@@ -89,9 +77,6 @@ class DatabaseClient:
             
     #  ---------UPDATE/INSERT---------------
     def upsert_item(self, item_data) -> bool:
-        """
-        Добавляет или обновляет объявление
-        """
         values = self.prepare_item_data(item_data)
         sql = get_upsert_sql(self.category_name)
         
@@ -104,9 +89,6 @@ class DatabaseClient:
             return False
 
     def prepare_item_data(self, item_data: dict) -> List[Any]:
-        """
-        Подготавливает данные объявления для вставки в БД
-        """
         values = []
         for col in ITEM_COLUMNS:
             value = item_data.get(col)

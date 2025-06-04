@@ -1,12 +1,8 @@
-"""
-Универсальная DDL схема для базы данных проекта
-"""
+# get_items_table_ddl - возвращает DDL для создания таблицы объявлений
+# get_upsert_sql - возвращает SQL для операции UPSERT
+# generate_category_table_name - возвращает имя таблицы для конкретной категории
 
-# Основная таблица для хранения объявлений
 def get_items_table_ddl(table_name: str = "items") -> str:
-    """
-    Возвращает DDL для создания таблицы объявлений
-    """
     return """
     CREATE TABLE IF NOT EXISTS {table_name} (
         item_id TEXT PRIMARY KEY,
@@ -54,9 +50,6 @@ JSON_COLUMNS = ["badges", "images", "params"]
 
 # SQL шаблон для UPSERT операций
 def get_upsert_sql(table_name: str = "items") -> str:
-    """
-    Возвращает SQL для операции UPSERT
-    """
     columns = ', '.join(ITEM_COLUMNS)
     placeholders = ', '.join('?' * len(ITEM_COLUMNS))
     
@@ -90,8 +83,5 @@ def get_upsert_sql(table_name: str = "items") -> str:
         )
 
 def generate_category_table_name(category_name: str) -> str:
-    """
-    Генерирует безопасное имя таблицы для категории
-    """
     safe_name = category_name.lower().replace('-', '_').replace(' ', '_')
     return f"category_{safe_name}" 

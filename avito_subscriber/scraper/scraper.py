@@ -8,6 +8,13 @@ import os
 import datetime
 from typing import Literal
 
+# AvitoScraper
+# -- _initialize_session - создает директории и настройки
+# -- _process_all_pages - обрабатывает все страницы: первую и последующие через пагинацию
+# -- _finalize_scraping - завершает процесс скрейпинга: проверяет результаты и очищает директории
+# -- run - запускает процесс скрейпинга
+# -- get_stats - возвращает статистику скрейпинга
+
 MODE: Literal['Local', 'Container'] = os.environ.get('MODE', 'Local')
 
 class AvitoScraper:
