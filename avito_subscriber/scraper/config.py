@@ -11,7 +11,7 @@ SCRAPING_URLS = {
 
 # Настройки пагинации и тайминга
 MAX_PAGES = 80
-WAIT_TIME = 4.0
+WAIT_TIME = 15.0
 
 # CSS селекторы для элементов страницы
 ITEMS_CONTAINER_SELECTOR = "div.items-items-zOkHg"  # периодически меняется, нужно проверить по префиксу - 'items-items-'
