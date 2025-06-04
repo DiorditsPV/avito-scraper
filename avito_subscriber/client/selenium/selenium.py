@@ -1,6 +1,7 @@
 import time
 import random
 import os
+import datetime
 import subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -185,3 +186,10 @@ class SeleniumParser:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+        
+    def save_screenshot(self, filepath: str = '/opt/airflow/screenshots'):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"debug_{self.url_key}_{timestamp}.png"
+        filepath = os.path.join(filepath, filename)
+        self.driver.save_screenshot(filepath)
+        print(f"Скриншот сохранен в файл: {filepath}")
