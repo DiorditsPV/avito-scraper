@@ -8,9 +8,6 @@ from datetime import datetime
 # check_and_cleanup_directory - проверяет директорию и удаляет ее если она пуста
 
 def generate_data_directory(base_dir, url_key):
-    """
-    Генерирует уникальное имя директории для хранения данных
-    """
     timestamp_marker = datetime.now().strftime("%Y%m%d_%H%M%S")
     dir_suffix = f"{timestamp_marker}_{url_key}"
     data_dir = f"{base_dir}/{dir_suffix}"
@@ -18,17 +15,11 @@ def generate_data_directory(base_dir, url_key):
 
 
 def create_data_directory(data_dir):
-    """
-    Создает директорию для хранения данных
-    """
     print(f"Создание директории для хранения данных: {data_dir}")
     os.makedirs(data_dir, exist_ok=True)
 
 
 def check_and_cleanup_directory(data_dir):
-    """
-    Удаляет директорию если в ней нет файлов
-    """
     try:
         if not os.path.exists(data_dir):
             return False
