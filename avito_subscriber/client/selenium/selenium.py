@@ -13,31 +13,41 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 class SeleniumParser:
     def __init__(self, headless=True, remote_selenium_url=None):
         options = webdriver.ChromeOptions()
+         
+        critical_options = [
+            '--headless',  # Всегда включаем headless в production
+            '--no-sandbox',  # Критично для Docker
+            '--disable-dev-shm-usage',  # Критично для Docker
+            '--disable-gpu',
+            '--window-size=1920,1080',
+        ]
+
+        # Опции для стабильности и производительности
+        stability_options = [
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-images',  # Ускоряет загрузку
+            '--disable-software-rasterizer',
+            '--disable-features=VizDisplayCompositor',
+            '--remote-debugging-port=9222',
+        ]
+
+        # Дополнительные настройки оптимизации
+        optimization_options = [
+            '--log-level=3',
+            '--silent',
+            '--disable-logging',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection'
+        ]
+
+        chrome_options = critical_options # + stability_options + optimization_options
         
-        # Критически важные опции для Docker/контейнерной среды
-        options.add_argument('--headless')  # Всегда включаем headless в production
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')  # Критично для Docker
-        options.add_argument('--disable-dev-shm-usage')  # Критично для Docker
-        options.add_argument('--disable-extensions')
-        options.add_argument('--disable-plugins')
-        options.add_argument('--disable-images')  # Ускоряет загрузку
-        
-        # Дополнительные опции для стабильности в Docker
-        options.add_argument('--disable-software-rasterizer')
-        options.add_argument('--disable-features=VizDisplayCompositor')
-        options.add_argument('--remote-debugging-port=9222')
-        
-        # Размер окна и прочие настройки
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--log-level=3')
-        options.add_argument('--silent')
-        options.add_argument('--disable-logging')
-        options.add_argument('--disable-background-timer-throttling')
-        options.add_argument('--disable-backgrounding-occluded-windows')
-        options.add_argument('--disable-renderer-backgrounding')
-        options.add_argument('--disable-features=TranslateUI')
-        options.add_argument('--disable-ipc-flooding-protection')
+        for option in chrome_options:
+            options.add_argument(option)
         
         # User agent для избежания блокировки
         options.add_argument('--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36')
