@@ -3,6 +3,9 @@ import shutil
 import glob
 from datetime import datetime
 
+# generate_data_directory - генерирует уникальное имя директории для хранения данных
+# create_data_directory - создает директорию для хранения данных
+# check_and_cleanup_directory - проверяет директорию и удаляет ее если она пуста
 
 def generate_data_directory(base_dir, url_key):
     """

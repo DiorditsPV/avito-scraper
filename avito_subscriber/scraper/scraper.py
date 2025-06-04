@@ -6,7 +6,9 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 import os
 import datetime
+from typing import Literal
 
+MODE: Literal['Local', 'Container'] = os.environ.get('MODE', 'Local')
 
 class AvitoScraper:
     """
@@ -26,7 +28,7 @@ class AvitoScraper:
         self.total_items = 0
         self.success = False
         self.max_pages = max_pages
-        self.screenshots_dir = "/opt/airflow/screenshots"
+        self.screenshots_dir = "/opt/airflow/screenshots" if MODE == "Container" else "screenshots"
     
     def _initialize_session(self):
         """
